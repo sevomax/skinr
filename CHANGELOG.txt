@@ -2,6 +2,7 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#908946 by sun: Fixed workaround for core bugs: #320303 & #151452. hook_menu() is invoked for disabled modules that are about to be uninstalled because hook_uninstall() does not respect dependencies.
 #908946 by sun: Fixed module update functions.
 #943008 by moonray: Fixed block_skinr_preprocess_hook_callback() never returning
   alternate block hooks.

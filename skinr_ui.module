@@ -60,7 +60,18 @@ function skinr_ui_menu() {
     'parent' => 'admin/appearance/skinr/skins',
     'weight' => -1,
   );
-  foreach (skinr_skinsets('skinset') as $skinset) {
+  // drupal_uninstall_modules() invokes hook_menu() in disabled modules and does
+  // not respect module dependencies. Therefore, uninstalling both Skinr UI and
+  // Skinr at the same time is leading to a database error, since
+  // skinr_skinsets() tries to load data from tables that have been deleted
+  // already.
+  // @see http://drupal.org/node/151452
+  // @see http://drupal.org/node/320303
+  $skinsets = array();
+  if (in_array('skinr', module_list())) {
+    $skinsets = skinr_skinsets('skinset');
+  }
+  foreach ($skinsets as $skinset) {
     $items['admin/appearance/skinr/skins/settings/'. $skinset->name] = array(
       'title' => $skinset->info['name'],
       'description' => 'Manage which options are available for each Skin when changing Skinr settings.',
