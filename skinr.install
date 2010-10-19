@@ -289,7 +289,7 @@ function skinr_update_7002() {
       'default' => '',
     ));
     db_update('skinr_rules')
-      ->fields(array('type' => 'page'))
+      ->fields(array('rule_type' => 'page'))
       ->execute();
     db_update('skinr')
       ->fields(array('module' => 'rules'))
