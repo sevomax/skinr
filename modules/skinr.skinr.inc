@@ -85,13 +85,21 @@ function rules_skinr_form_index_handler($op, &$form, $form_state) {
  *   The preprocess_hook we wish to use.
  */
 function rules_skinr_preprocess_hook_callback(&$form, $form_state) {
+  $preprocess_hooks = array();
+  
   if (!empty($form['rule'])) {
-    return $form['rule']['rule_type']['#value'];
+    $hooks = explode('__', $form['rule']['rule_type']['#value']);
   }
   else {
     $rule = skinr_rule_load($form['skinr']['sid']['#value']);
-    return $rule->rule_type;
+    $hooks = explode('__', $rule->rule_type);
   }
+  while (count($hooks)) {
+    $preprocess_hooks[] = implode('__', $hooks);
+    array_pop($hooks);
+  }
+  
+  return $preprocess_hooks;
 }
 
 /**
