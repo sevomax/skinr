@@ -433,6 +433,18 @@ function skinr_ui_form_alter(&$form, $form_state, $form_id) {
           $preprocess_hooks = array($preprocess_hooks);
         }
 
+        // If this hook is a region, and the region does not exist for this
+        // theme, don't bother outputting any of the settings.
+        if (strpos($preprocess_hooks[0], 'region') === 0) {
+          // Strip the region__ part off the region name.
+          $region = substr($preprocess_hooks[0], 8);
+
+          $regions = system_region_list($theme->name, REGIONS_VISIBLE);
+          if (!isset($regions[$region])) {
+            continue;
+          }
+        }
+
         if (!$form_state['submitted']) {
           if ($skinr = skinr_handler('data_handler', 'form', $form_settings['data_handler'], $form, $form_state, $theme->name, $module, $form_settings)) {
             $defaults  = $skinr->skins;
