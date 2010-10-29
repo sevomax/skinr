@@ -468,10 +468,14 @@ function skinr_ui_admin_skinsets($form, $form_state) {
 
   // @todo Add API function to retrieve D7 skins.
   $skinsets = array();
+  if (empty($skinsets)) {
+    $form['skinsets_empty'] = array(
+      '#markup' => t('You do not currently have any skin sets to manage.'),
+    );
+    return $form;
+  }
 
   uasort($skinsets, 'skinr_ui_sort_by_info_name');
-
-
   $form['skinsets'] = array('#tree' => TRUE);
 
   // Iterate through each of the skinsets.
@@ -869,7 +873,6 @@ function theme_skinr_ui_admin_skinsets_settings_info($variables) {
  * Process skinr_ui_admin_skinsets_settings form submissions.
  */
 function skinr_ui_admin_skinsets_settings_submit($form, &$form_state) {
-  dpm($form_state['values']);
   if ($form_state['values']['op'] == t('Save configuration')) {
     $statuses = array();
     foreach ($form_state['values']['skins'] as $theme => $skins) {

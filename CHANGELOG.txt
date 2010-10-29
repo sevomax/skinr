@@ -2,6 +2,7 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#949746 by sun, nomonstersinme: Fixed Skins page broken.
 #947790 by moonray | Jacine: Fixed Port Panels functionality to 7.x.
 #954874 by moonray, sun: Fixed Rip out .info file handling from skinr core module.
 #943064 by moonray | Jacine: Fixed Skinr rules settings fieldset for region editing needs work.
