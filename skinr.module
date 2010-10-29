@@ -18,6 +18,18 @@ function skinr_help($path, $arg) {
 }
 
 /**
+ * Implements hook_module_implements_alter().
+ */
+function skinr_module_implements_alter(&$implementations, $hook) {
+  // Run Skinr first to avoid issues with other modules during hook_init().
+  if ($hook == 'init') {
+    $skinr['skinr'] = $implementations['skinr'];
+    unset($implementations['skinr']);
+    $implementations = array_merge($skinr, $implementations);
+  }
+}
+
+/**
  * Implementation of hook_init().
  */
 function skinr_init() {
