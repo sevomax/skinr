@@ -466,13 +466,14 @@ function skinr_ui_settings_validate(&$form, &$form_state) {
 function skinr_ui_admin_skinsets($form, $form_state) {
   $form = array();
 
-  $skinsets = skinr_rebuild_skinset_data();
+  // @todo Add API function to retrieve D7 skins.
+  $skinsets = array();
 
   uasort($skinsets, 'skinr_ui_sort_by_info_name');
 
 
   $form['skinsets'] = array('#tree' => TRUE);
-  
+
   // Iterate through each of the skinsets.
   foreach ($skinsets as $name => $skinset) {
     $extra = array();
@@ -608,7 +609,7 @@ function skinr_ui_sort_by_info_name($a, $b) {
 function skinr_ui_admin_skinsets_submit($form, &$form_state) {
   // Store list of previously enabled themes and disable all themes.
   $old_skinset_list = $new_skinset_list = array();
-  foreach (skinr_skinsets('skinset') as $skinset) {
+  foreach (skinr_skinsets() as $skinset) {
     if ($skinset->status) {
       $old_skinset_list[] = $skinset->name;
     }
@@ -725,27 +726,27 @@ function theme_skinr_ui_admin_skinsets_incompatible($variables) {
 function skinr_ui_admin_skinsets_settings($form, $form_state, $skinset_name) {
   $form = array();
 
-  $skinsets = skinr_skinsets('skinset');
+  $skinsets = skinr_skinsets();
   if (!empty($skinsets[$skinset_name])) {
     $skinset = $skinsets[$skinset_name];
-  
+
     $themes = list_themes();
     ksort($themes);
-  
+
     $form['skins'] = array('#tree' => TRUE);
-    
+
     // Iterate through each of the skinsets.
     foreach ($skinset->skins as $name => $skin) {
       foreach ($themes as $theme) {
         if (!$theme->status) {
           continue;
         }
-        
+
         // Create a row entry for this skinset.
         $form['skins'][$theme->name][$name] = _skinr_ui_admin_skinsets_settings_build_row($skin, $theme->name);
       }
     }
-  
+
     // Add basic information to the fieldsets.
     $current_theme = skinr_current_theme(TRUE);
     foreach (element_children($form['skins']) as $theme_name) {

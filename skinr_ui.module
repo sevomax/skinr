@@ -69,10 +69,10 @@ function skinr_ui_menu() {
   // @see http://drupal.org/node/320303
   $skinsets = array();
   if (in_array('skinr', module_list())) {
-    $skinsets = skinr_skinsets('skinset');
+    $skinsets = skinr_skinsets();
   }
   foreach ($skinsets as $skinset) {
-    $items['admin/appearance/skinr/skins/settings/'. $skinset->name] = array(
+    $items['admin/appearance/skinr/skins/settings/' . $skinset->name] = array(
       'title' => $skinset->info['name'],
       'description' => 'Manage which options are available for each Skin when changing Skinr settings.',
       'page callback' => 'drupal_get_form',

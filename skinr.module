@@ -87,8 +87,6 @@ function skinr_skin_extract($module, $sids, $settings, $theme = NULL) {
     $theme = skinr_current_theme();
   }
 
-  $info = skinr_skin_data();
-
   $extracted = array(
     'module' => $module,
     'sids' => $sids,
@@ -635,68 +633,6 @@ function skinr_skin_default() {
 }
 
 /**
- * Retrieves all the Skinr skins from theme parents. Theme skins
- * will override any skins of the same name from its parents.
- */
-function skinr_inherited_skins($theme) {
-  $themes = list_themes();
-
-  $all_skins = $skins = array();
-  $base_theme = (!empty($themes[$theme]->info['base theme'])) ? $themes[$theme]->info['base theme'] : '';
-  while ($base_theme) {
-    $all_skins[] = (!empty($themes[$base_theme]->info['skinr'])) ? (array)$themes[$base_theme]->info['skinr'] : array();
-    $base_theme = (!empty($themes[$base_theme]->info['base theme'])) ? $themes[$base_theme]->info['base theme'] : '';
-  }
-  array_reverse($all_skins);
-  foreach ($all_skins as $new_skin) {
-    $skins = array_merge($skins, $new_skin);
-  }
-  return $skins;
-}
-
-/**
- * Helper function to scan and collect skin .info data.
- *
- * @return
- *   An associative array of skins information.
- */
-function _skinr_rebuild_skinset_data() {
-  // Find skins.
-  $mask = '/\.info$/';
-  $directory = 'skins';
-  $skinsets = drupal_system_listing($mask, $directory, 'name', 0);
-
-  // Find skins in theme folders.
-  $themes = list_themes();
-  foreach ($themes as $theme) {
-    $dir = dirname($theme->filename) . '/' . $directory;
-    $skinsets = array_merge($skinsets, file_scan_directory($dir, $mask, array('.', '..', 'CVS'), 0, TRUE, 'name', 1));
-  }
-
-  // Set defaults for skinset info.
-  $defaults = skinr_skins_default();
-
-  foreach ($skinsets as $key => $skinset) {
-    $skinsets[$key]->filename = $skinset->uri;
-    $skinsets[$key]->info = drupal_parse_info_file($skinset->uri) + $defaults;
-
-    // Give the screenshot proper path information.
-    if (!empty($skinsets[$key]->info['screenshot'])) {
-      $skinsets[$key]->info['screenshot'] = dirname($skinsets[$key]->uri) . '/' . $skinsets[$key]->info['screenshot'];
-    }
-
-    // Invoke hook_skinr_info_alter() to give installed modules a chance to
-    // modify the data in the .info files if necessary.
-    $type = 'skinset';
-    drupal_alter('skinr_info', $skinsets[$key]->info, $skinsets[$key], $type);
-    
-    // @todo Give the stylesheets and scripts proper path information, or leave 'till later?
-  }
-
-  return $skinsets;
-}
-
-/**
  * Helper function to process a skin or theme .info file.
  *
  * @return
@@ -729,11 +665,6 @@ function _skinr_skinset($info) {
         $skinset['options']['groups'][$id]['collapsed'] = (bool)$skinset['options']['groups'][$id]['collapsed'];
         $skinset['options']['groups'][$id]['weight'] = $skinset['options']['groups'][$id]['weight'];
       }
-    }
-
-    // Inherit skins from parent theme, if inherit_skins is set to true.
-    if (!empty($skinset['options']['inherit_skins'])) {
-      $skinr_info = array_merge(skinr_inherited_skins($info->name), $skinr_info);
     }
 
     $defaults = skinr_skin_default();
@@ -811,50 +742,39 @@ function _skinr_add_path_to_files($files, $path, $type) {
 }
 
 /**
- * Helper function to process an array of skins or themes .info files.
- *
- * @param $type
- *   Either 'theme' or 'skinset'.
+ * Helper function to process an array of skins.
  *
  * @return
  *    An array of skinsets.
  */
-function skinr_skinsets($type) {
-  $skinsets = &drupal_static(__FUNCTION__, array('theme' => array(), 'skinset' => array()));
-  // @todo drupal_static_reset('skinr_skinsets');
+function skinr_skinsets() {
+  $skinsets = &drupal_static(__FUNCTION__, array());
 
-  if (empty($skinsets[$type])) {
+  if (!empty($skinsets)) {
+    $result = db_query("SELECT * FROM {skinr_skinsets}");
+    foreach ($result as $skinset) {
+      if (file_exists($skinset->filename)) {
+        $skinset->info = unserialize($skinset->info);
+        $skinsets[$skinset->name] = $skinset;
+      }
+    }
+
     $themes = list_themes();
-
-    if ($type == 'theme') {
-      foreach ($themes as $theme) {
-        $skinset = new StdClass();
-        $skinset->filename = $theme->filename;
-        $skinset->name = $theme->name;
-        $skinset->status = $theme->status ? 1 : 0;
-        $skinset->info = $theme->info;
-
-        $skinsets[$type][$skinset->name] = $skinset;
-      }
-    }
-    elseif ($type == 'skinset') {
-      $result = db_query("SELECT * FROM {skinr_skinsets}");
-      foreach ($result as $skinset) {
-        if (file_exists($skinset->filename)) {
-          $skinset->info = unserialize($skinset->info);
-
-          $skinsets[$type][$skinset->name] = $skinset;
-        }
-      }
-    }
-
     $default_status = array();
     foreach ($themes as $theme) {
       $default_status[$theme->name] = $theme->name;
     }
 
-    foreach ($skinsets[$type] as $key => $skinset) {
-      $skinset->type = $type;
+    foreach ($skinsets as $key => $skinset) {
+      if (isset($themes[$key])) {
+        $skinset->type = 'theme';
+        $skinset->status = !empty($theme->status) ? 1 : 0;
+      }
+      else {
+        $skinset->type = 'skinset';
+      }
+
+      // @todo Allow skins to inherit from other skins.
 
       $additional = _skinr_skinset($skinset);
       $skinset->options = $additional['options'];
@@ -867,7 +787,7 @@ function skinr_skinsets($type) {
     }
   }
 
-  return $skinsets[$type];
+  return $skinsets;
 }
 
 /**
@@ -895,128 +815,6 @@ function skinr_skinset_statuses($skinset_name) {
 }
 
 /**
- * Rebuild, save, and return data about all currently available skinsets.
- *
- * @return
- *   Array of all available skinsets and their data.
- */
-function skinr_rebuild_skinset_data() {
-  $skinsets = _skinr_rebuild_skinset_data();
-  skinr_get_files_database($skinsets);
-  skinr_update_files_database($skinsets);
-  return $skinsets;
-}
-
-/**
- * Implementation of hook_flush_caches().
- */
-function skinr_flush_caches() {
-  skinr_rebuild_skinset_data();
-  return array();
-}
-
-/**
- * Retrieves the current status of an array of files in the skinr_skinsets table.
- *
- * @param $files
- *   An array of files to check.
- */
-function skinr_get_files_database(&$files) {
-  // Extract current files from database.
-  $result = db_query("SELECT filename, name, status FROM {skinr_skinsets}");
-  foreach ($result as $file) {
-    if (isset($files[$file->name]) && is_object($files[$file->name])) {
-      $file->uri = $file->filename;
-      foreach ($file as $key => $value) {
-        if (!isset($files[$file->name]) || !isset($files[$file->name]->$key)) {
-          $files[$file->name]->$key = $value;
-        }
-      }
-    }
-  }
-}
-
-/**
- * Updates the records in the skinr_skinsets table based on the files array.
- *
- * @param $files
- *   An array of files.
- */
-function skinr_update_files_database(&$files) {
-  $result = db_query("SELECT * FROM {skinr_skinsets}");
-
-  // Add all files that need to be deleted to a DatabaseCondition.
-  $delete = db_or();
-  foreach ($result as $file) {
-    if (isset($files[$file->name]) && is_object($files[$file->name])) {
-      // Keep the old filename from the database in case the file has moved.
-      $old_filename = $file->filename;
-
-      $updated_fields = array();
-
-      // Handle info specially, compare the serialized value.
-      $serialized_info = serialize($files[$file->name]->info);
-      if ($serialized_info != $file->info) {
-        $updated_fields['info'] = $serialized_info;
-      }
-      unset($file->info);
-
-      // Scan remaining fields to find only the updated values.
-      foreach ($file as $key => $value) {
-        if (isset($files[$file->name]->$key) && $files[$file->name]->$key != $value) {
-          $updated_fields[$key] = $files[$file->name]->$key;
-        }
-      }
-
-      // Update the record.
-      if (count($updated_fields)) {
-        db_update('skinr_skinsets')
-          ->fields($updated_fields)
-          ->condition('filename', $old_filename)
-          ->execute();
-      }
-
-      // Indicate that the file exists already.
-      $files[$file->name]->exists = TRUE;
-    }
-    else {
-      // File is not found in file system, so delete record from the system table.
-      $delete->condition('filename', $file->filename);
-    }
-  }
-
-  if (count($delete) > 0) {
-    // Delete all missing files from the system table
-    db_delete('skinr_skinsets')
-      ->condition($delete)
-      ->execute();
-  }
-
-  // All remaining files are not in the system table, so we need to add them.
-  $query = db_insert('skinr_skinsets')->fields(array('filename', 'name', 'info'));
-  foreach($files as &$file) {
-    if (isset($file->exists)) {
-      unset($file->exists);
-    }
-    else {
-      $query->values(array(
-        'filename' => $file->uri,
-        'name' => $file->name,
-        'info' => serialize($file->info),
-      ));
-      $file->status = 0;
-    }
-  }
-  $query->execute();
-
-  // If any module or theme was moved to a new location, we need to reset the
-  // system_list() cache or we will continue to load the old copy, look for
-  // schema updates in the wrong place, etc.
-  drupal_static_reset('skinr_skin_data');
-  drupal_static_reset('skinr_skinsets');
-}
-
-/**
  * Themes are allowed to set Skinr skins in their .info files.
  *
  * @return
@@ -1028,19 +826,20 @@ function skinr_skin_data() {
   $cache = &drupal_static(__FUNCTION__);
 
   if (is_null($cache)) {
-    $skins_skinsets  = skinr_skinsets('skinset');
-    $themes_skinsets = skinr_skinsets('theme');
+    $skinsets = skinr_skinsets();
 
     // Need to merge all skins skinsets into a single list of skins.
     // Also merge in the groups information.
     $additional_skins = array();
     $groups = array();
-    foreach ($skins_skinsets as $key => $skinset) {
-      if (!empty($skinset->skins) && $skinset->status == 1) {
-        $additional_skins += $skinset->skins;
-      }
-      if (!empty($skinset->options['groups'])) {
-        $groups += $skinset->options['groups'];
+    foreach ($skinsets as $key => $skinset) {
+      if ($skinset->type == 'skinset') {
+        if (!empty($skinset->skins) && $skinset->status == 1) {
+          $additional_skins += $skinset->skins;
+        }
+        if (!empty($skinset->options['groups'])) {
+          $groups += $skinset->options['groups'];
+        }
       }
     }
 
@@ -1052,16 +851,18 @@ function skinr_skin_data() {
         continue;
       }
 
-      if (isset($themes_skinsets[$theme->name])) {
-        $cache[$theme->name] = $themes_skinsets[$theme->name];
+      if (!empty($skinsets[$theme->name])) {
+        $cache[$theme->name] = $skinsets[$theme->name];
         $cache[$theme->name]->skins += $additional_skins;
         $cache[$theme->name]->options['groups'] += $groups;
       }
       else {
-        $cache[$theme->name] = array(
-          'options' => array('groups' => $groups),
-          'skins' => $additional_skins,
-        );
+        $cache[$theme->name] = new stdClass();
+        $cache[$theme->name]->name = $theme->name;
+        $cache[$theme->name]->status = 1;
+        $cache[$theme->name]->type = 'theme';
+        $cache[$theme->name]->skins = $additional_skins;
+        $cache[$theme->name]->options = array('groups' => $groups);
       }
     }
   }
