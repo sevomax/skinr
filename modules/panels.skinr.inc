@@ -72,13 +72,13 @@ function panels_skinr_form_index_handler($op, &$form, $form_state) {
   switch ($op) {
     case 'form':
     case 'submit':
-      switch ($form['#parameters'][1]['type']) {
+      switch ($form_state['type']) {
         case 'display':
-          return 'display-' . $form['#parameters'][1]['display']->did;
-        case 'panel':
-          return 'display-' . $form['#parameters'][1]['display']->did . '-panel-' . $form['#parameters'][1]['pid'];
+          return 'display-' . $form_state['display']->did;
+        case 'region':
+          return 'display-' . $form_state['display']->did . '-region-' . $form_state['pid'];
         case 'pane':
-          return 'display-' . $form['#parameters'][1]['display']->did . '-pane-' . $form['#parameters'][1]['pid'];
+          return 'display-' . $form_state['display']->did . '-pane-' . $form_state['pid'];
       }
   }
 }
@@ -341,11 +341,11 @@ function _panels_skinr_save_and_clear_cache($did) {
  *   The preprocess_hook we wish to use.
  */
 function panels_skinr_preprocess_hook_callback(&$form, $form_state) {
-  switch ($form['#parameters'][1]['type']) {
+  switch ($form_state['type']) {
     case 'display':
       return 'panels_display';
-    case 'panel':
-      return 'panels_panel';
+    case 'region':
+      return 'panels_region';
     case 'pane':
       return 'panels_pane';
   }
@@ -362,8 +362,8 @@ function panels_skinr_preprocess_hook_callback(&$form, $form_state) {
  *   The preprocess_hook we wish to use.
  */
 function panels_skinr_ajax_preprocess_hook_callback(&$form, $form_state) {
-  if (strpos($form['skinr']['sid']['#value'], '-panel-') !== FALSE) {
-    return 'panels_panel';
+  if (strpos($form['skinr']['sid']['#value'], '-region-') !== FALSE) {
+    return 'panels_region';
   }
   elseif (strpos($form['skinr']['sid']['#value'], '-pane-') !== FALSE) {
     return 'panels_pane';

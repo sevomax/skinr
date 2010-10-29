@@ -2,7 +2,8 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
-#954874 by moonray, sun: Changed Rip out .info file handling from skinr core module.
+#947790 by moonray | Jacine: Fixed Port Panels functionality to 7.x.
+#954874 by moonray, sun: Fixed Rip out .info file handling from skinr core module.
 #943064 by moonray | Jacine: Fixed Skinr rules settings fieldset for region editing needs work.
 #947738 by moonray | nomonstersinme: Fixed skinr[skin_name()][features][] = region does not work.
 #945086 by yettyn, ezra-g: Fixed PDOException: %message in skinr_update_7002().

@@ -191,6 +191,15 @@ function skinr_uninstall() {
 }
 
 /**
+ * Implements hook_update_last_removed().
+ *
+ * Make sure any previous updates aren't skipped.
+ */
+function skinr_update_last_removed() {
+  return 6004;
+}
+
+/**
  * Install new skinr tables and convert old variables to the new db system.
  */
 function skinr_update_7001() {
