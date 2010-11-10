@@ -32,7 +32,6 @@ function views_skinr_config() {
     'submit_handler' => 'views_skinr_submit_handler_view',
   );
   $data['views']['form']['skinr_ui_form'] = array(
-    'index_handler' => 'skinr_ajax_index_handler',
     'preprocess_hook_callback' => 'views_skinr_preprocess_hook_callback',
     'title' => t('views style settings'),
     'collapsed' => FALSE,
@@ -161,7 +160,7 @@ function views_skinr_data_handler(&$form, $form_state, $theme, $module, $form_se
   // Fetch skinr data for this view from cache
   views_include('cache');
 
-  if ($skinrs = views_object_cache_get('skinr', $form_state['view']->name)) {
+  if ($skinrs = ctools_object_cache_get('skinr', $form_state['view']->name)) {
     if (isset($skinrs[$theme][$index])) {
       $skinr = new stdClass();
       $skinr->theme = $theme;
@@ -219,8 +218,8 @@ function views_skinr_submit_handler_display(&$form, $form_state, $module, $form_
       }
 
       // Save skinr_settings for this view in cache
-      views_include('cache');
-      if (!$skinrs = views_object_cache_get('skinr', $form_state['view']->name, TRUE)) {
+      ctools_include('object-cache');
+      if (!$skinrs = ctools_object_cache_get('skinr', $form_state['view']->name, TRUE)) {
         $skinrs = array();
         // Fetch skinr data
         $skinr = skinr_get($theme_name);
@@ -242,9 +241,9 @@ function views_skinr_submit_handler_view(&$form, $form_state, $module, $form_set
   switch ($form_state['values']['op']) {
     case t('Save'):
       // Fetch skinr data for this view from cache
-      views_include('cache');
+      ctools_include('object-cache');
 
-      if ($skinrs = views_object_cache_get('skinr', $form_state['view']->name, TRUE)) {
+      if ($skinrs = ctools_object_cache_get('skinr', $form_state['view']->name, TRUE)) {
         foreach ($skinrs as $theme_name => $theme) {
           foreach ($theme as $sid => $skins) {
             $skinr = new stdClass();
@@ -261,7 +260,7 @@ function views_skinr_submit_handler_view(&$form, $form_state, $module, $form_set
       break;
     case t('Cancel'):
       // Remove our data from views cache
-      views_include('cache');
+      ctools_include('object-cache');
 
       views_object_cache_clear('skinr', $form_state['view']->name);
       break;
@@ -297,7 +296,7 @@ function views_skinr_preprocess_hook_callback(&$form, $form_state) {
     // Create list of suggested templates.
     $preprocess_hooks = views_theme_functions('views_view', $view, $display);
     // Fetch additional style based suggested templates.
-    $additional_hooks = views_theme_functions($view->style_plugin->definition['theme'], $view, $display);
+    $additional_hooks = views_theme_functions($display->display_plugin, $view, $display);
 
     $preprocess_hooks = array_merge($additional_hooks, $preprocess_hooks);
   }
@@ -337,6 +336,25 @@ function views_skinr_preprocess_index_handler(&$variables) {
   else {
     return 'view-'. $variables['view']->name .'-display-'. $variables['view']->current_display;
   }
+}
+
+/**
+ * Implements hook_views_admin_links_alter().
+ */
+function views_views_admin_links_alter(&$links, &$view) {
+  $default = $view->display_handler->is_defaulted('style_options');
+  if ($default) {
+    $sid = 'view-'. $view->name .'-display-default';
+  }
+  else {
+    $sid = 'view-'. $view->name .'-display-'. $view->current_display;
+  }
+
+  $links[] = array(
+    'title' => skinr_ui_edit_contextual_title('views', $sid),
+    'href' => 'admin/appearance/skinr/edit/nojs/views/' . $sid,
+    'query' => drupal_get_destination(),
+  );
 }
 
 /**
