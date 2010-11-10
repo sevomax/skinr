@@ -213,7 +213,7 @@ function panels_skinr_data_handler(&$form, $form_state, $theme, $module, $form_s
  */
 function panels_skinr_submit_handler_settings(&$form, $form_state, $module, $form_settings) {
   foreach ($form_state['values']['skinr_settings'][$module . '_group'] as $theme_name => $theme) {
-    if ((isset($theme['widgets']) && count($theme['widgets'])) || isset($theme['_additional'])) {
+    if ((!empty($theme['widgets']) && is_array($theme['widgets'])) || isset($theme['_additional'])) {
       $hook  = $module;
       $sid   = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state);
 
@@ -222,7 +222,7 @@ function panels_skinr_submit_handler_settings(&$form, $form_state, $module, $for
 
       $value = array();
 
-      if (is_array($theme['widgets'])) {
+      if (!empty($theme['widgets']) && is_array($theme['widgets'])) {
         foreach ($theme['widgets'] as $skin_id => $skin_value) {
           $value[$skin_id] = $skin_value;
         }

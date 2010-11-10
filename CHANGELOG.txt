@@ -2,6 +2,7 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#906764 by Vraja, DamienMcKenna: Fixed Logic error in handlers.inc skinr_submit_handler().
 #796780 by moonray, sun, ericduran, neochief: Fixed Run Skinr first to avoid problems with other modules during hook_init().
 #949746 by sun, nomonstersinme: Fixed Skins page broken.
 #947790 by moonray | Jacine: Fixed Port Panels functionality to 7.x.

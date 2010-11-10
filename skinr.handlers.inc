@@ -105,14 +105,14 @@ function skinr_data_handler(&$form, $form_state, $theme, $module, $form_settings
 function skinr_submit_handler(&$form, $form_state, $module, $form_settings) {
   if (isset($form_state['values']['skinr_settings'][$module . '_group'])) {
     foreach ($form_state['values']['skinr_settings'][$module . '_group'] as $theme_name => $theme) {
-      if ((isset($theme['widgets']) && count($theme['widgets'])) || isset($theme['_additional'])) {
+      if ((!empty($theme['widgets']) && is_array($theme['widgets'])) || isset($theme['_additional'])) {
         $skinr = new stdClass();
         $skinr->theme = $theme_name;
         $skinr->module = $module;
         $skinr->sid = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state);
         $skinr->skins = array();
 
-        if (isset($theme['widgets']) && is_array($theme['widgets'])) {
+       if (!empty($theme['widgets']) && is_array($theme['widgets'])) {
           foreach ($theme['widgets'] as $skin_id => $skin_value) {
             $skinr->skins[$skin_id] = $skin_value;
           }
