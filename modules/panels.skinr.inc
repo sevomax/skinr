@@ -235,13 +235,6 @@ function panels_skinr_submit_handler_settings(&$form, $form_state, $module, $for
         }
       }
 
-      if (isset($theme['_template'])) {
-        $theme['_template'] = trim($theme['_template']);
-        if (!empty($theme['_template'])) {
-          $value['_template'] = $theme['_template'];
-        }
-      }
-
       if (empty($sid)) {
         // We didn't receive a valid sid, so raise an error.
         drupal_set_message(t("Skinr settings weren't saved due to an error."), 'error');

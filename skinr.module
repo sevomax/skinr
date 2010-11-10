@@ -71,9 +71,6 @@ function skinr_preprocess(&$variables, $hook) {
             _skinr_add_file($file['path'], 'js');
           }
         }
-        if (!empty($extracted['template'])) {
-          $variables['theme_hook_suggestions'][] = $extracted['template'];
-        }
         $variables['classes_array'] = array_merge($variables['classes_array'], $extracted['classes']);
 
         // Need to add a hook for skinr_ui to plug into.
@@ -105,7 +102,6 @@ function skinr_skin_extract($module, $sids, $settings, $theme = NULL) {
     'classes' => array(),
     'css' => array(),
     'js' => array(),
-    'template' => array(),
   );
 
   $skins = array();
@@ -121,12 +117,6 @@ function skinr_skin_extract($module, $sids, $settings, $theme = NULL) {
 
   $extracted['css'] = skinr_skin_get_files($skins, 'css', $theme);
   $extracted['js'] = skinr_skin_get_files($skins, 'js', $theme);
-
-  // Add template files.
-  if (!empty($skins['_template'])) {
-    $extracted['template'] = $skins['_template'];
-    unset($skins['_template']);
-  }
 
   $extracted['classes'] = skinr_flatten_skins_array($skins);
 
@@ -635,7 +625,6 @@ function skinr_skin_default() {
     'type' => 'checkboxes',
     'description' => '',
     'features' => array('*'),
-    'templates' => array(),
     'group' => '',
     'options' => array(),
     'stylesheets' => array(),
@@ -690,7 +679,6 @@ function _skinr_skinset($info) {
         'type' => isset($skin['type']) ? $skin['type'] : $defaults['type'],
         'description' => isset($skin['description']) ? $skin['description'] : $defaults['description'],
         'features' => isset($skin['features']) ? $skin['features'] : $defaults['features'],
-        'templates' => isset($skin['templates']) ? $skin['templates'] : $defaults['templates'],
         'group' => !empty($skin['group']) && !empty($skinset['options']['groups'][$skin['group']]) ? $skin['group'] : $defaults['group'],
         'options' => isset($skin['options']) ? $skin['options'] : $defaults['options'],
         'stylesheets' => isset($skin['stylesheets']) ? $skin['stylesheets'] : $defaults['stylesheets'],

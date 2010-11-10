@@ -16,7 +16,7 @@ function skinr_ui_permission() {
     ),
     'access skinr classes' => array(
       'title' => t('Access Skinr\'s advanced settings'),
-      'description' => t('Set advanced Skinr options, such as custom CSS classes and custom template files.'),
+      'description' => t('Set advanced Skinr options, such as custom CSS classes.'),
     ),
   );
 }
@@ -449,19 +449,16 @@ function skinr_ui_form_alter(&$form, $form_state, $form_id) {
           if ($skinr = skinr_handler('data_handler', 'form', $form_settings['data_handler'], $form, $form_state, $theme->name, $module, $form_settings)) {
             $defaults  = $skinr->skins;
             $additional_default = isset($skinr->skins['_additional']) ? $skinr->skins['_additional'] : '';
-            $template_default = isset($skinr->skins['_template']) ? $skinr->skins['_template'] : '';
           }
           else {
             $defaults  = array();
             $additional_default = '';
-            $template_default = '';
           }
         }
         else {
           // Handle preview before submit.
           $defaults  = $form_state['values']['widgets'];
           $additional_default = $form_state['values']['_additional'];
-          $template_default = $form_state['values']['_template'];
         }
 
         if (!isset($form['skinr_settings'][$module . '_group'])) {
@@ -490,7 +487,6 @@ function skinr_ui_form_alter(&$form, $form_state, $form_id) {
         }
 
         // Create individual widgets for each skin.
-        $template_options = array();
         if (isset($info[$theme->name]->skins)) {
           foreach ($info[$theme->name]->skins as $skin_id => $skin) {
             // Check if this skin is disabled.
@@ -554,10 +550,6 @@ function skinr_ui_form_alter(&$form, $form_state, $form_id) {
               }
               $form['skinr_settings'][$module . '_group'][$theme->name]['widgets'][$skin['group']][$skin_id] = $field;
             }
-
-            // Prepare templates.
-            $templates = skinr_ui_info_templates_filter($skin['templates'], $preprocess_hooks);
-            $template_options = array_merge($template_options, skinr_ui_info_templates_to_form_options($templates));
           }
         }
 
@@ -569,13 +561,6 @@ function skinr_ui_form_alter(&$form, $form_state, $form_id) {
             '#size' => 40,
             '#description' => t('To add CSS classes manually, enter classes separated by a single space i.e. <code>first-class second-class</code>'),
             '#default_value' => $additional_default,
-          );
-          $form['skinr_settings'][$module . '_group'][$theme->name]['_template'] = array(
-            '#type' => !empty($template_options) ? 'select' : 'hidden',
-            '#title' => t('Template file'),
-            '#options' => array_merge(array('' => 'Default'), $template_options),
-            '#default_value' => $template_default,
-            '#description' => t('Optionally, select a template file to use. The "Default" option allows Drupal to handle this.'),
           );
 
           // Only add validation handler once.
@@ -774,35 +759,4 @@ function skinr_ui_info_options_to_form_options($options) {
     $form_options[$option['class']] = t($option['label']);
   }
   return $form_options;
-}
-
-/**
- * Helper function to convert an array of template filenames, as specified in
- * the info file, into an array usable by form api.
- */
-function skinr_ui_info_templates_to_form_options($templates) {
-  $form_options = array();
-  foreach ($templates as $template) {
-    // If it exists, strip .tpl.php from template.
-    $template = str_replace('.tpl.php', '', $template);
-    $form_options[$template] = $template . '.tpl.php';
-  }
-  return $form_options;
-}
-
-/**
- * Helper function to filter templates by preprocess_hooks.
- */
-function skinr_ui_info_templates_filter($templates, $preprocess_hooks) {
-  $filtered_templates = array();
-  foreach ($templates as $template) {
-    // If it exists, strip .tpl.php from template.
-    $template = str_replace('.tpl.php', '', $template);
-    foreach ($preprocess_hooks as $preprocess_hook) {
-      if (drupal_substr(str_replace('_', '-', $template), (drupal_strlen($preprocess_hook) * -1)) == str_replace('_', '-', $preprocess_hook)) {
-        $filtered_templates[] = $template;
-      }
-    }
-  }
-  return $filtered_templates;
 }
