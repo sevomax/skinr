@@ -68,17 +68,18 @@ function skinr_ui_filter_form() {
   $form['filters'] = array(
     '#type' => 'fieldset',
     '#title' => t('Show only items where'),
-    '#theme' => 'skinr_ui_filters',
+    '#theme' => 'exposed_filters__skinr',
   );
   foreach ($session as $filter) {
     list($type, $value) = $filter;
     $value = $filters[$type]['options'][$value];
+    $t_args = array('%property' => $filters[$type]['title'], '%value' => $value);
 
     if ($i++) {
-      $form['filters']['current'][] = array('#markup' => t('<em>and</em> where <strong>%type</strong> is <strong>%value</strong>', array('%type' => $filters[$type]['title'], '%value' => $value)));
+      $form['filters']['current'][] = array('#markup' => t('and where %property is %value', $t_args));
     }
     else {
-      $form['filters']['current'][] = array('#markup' => t('<strong>%type</strong> is <strong>%value</strong>', array('%type' => $filters[$type]['title'], '%value' => $value)));
+      $form['filters']['current'][] = array('#markup' => t('where %property is %value', $t_args));
     }
     if (in_array($type, array('theme', 'type'))) {
       // Remove the option if it is already being filtered on.
@@ -86,9 +87,19 @@ function skinr_ui_filter_form() {
     }
   }
 
+  $form['filters']['status'] = array(
+    '#type' => 'container',
+    '#attributes' => array('class' => array('clearfix')),
+    '#prefix' => ($i ? '<div class="additional-filters">' . t('and where') . '</div>' : ''),
+  );
+  $form['filters']['status']['filters'] = array(
+    '#type' => 'container',
+    '#attributes' => array('class' => array('filters')),
+   );
+
   foreach ($filters as $key => $filter) {
     $names[$key] = $filter['title'];
-    $form['filters']['status'][$key] = array(
+    $form['filters']['status']['filters'][$key] = array(
       '#type' => 'select',
       '#title' => $filter['title'],
       '#options' => $filter['options'],
@@ -96,64 +107,25 @@ function skinr_ui_filter_form() {
     );
   }
 
-  $form['filters']['actions'] = array(
+  $form['filters']['status']['actions'] = array(
     '#type' => 'actions',
-    '#id' => 'skinr-ui-admin-buttons',
+    '#id' => 'skinr-exposed-filters',
     '#attributes' => array('class' => array('container-inline')),
   );
   if (count($filters)) {
-    $form['filters']['actions']['submit'] = array('#type' => 'submit', '#value' => (count($session) ? t('Refine') : t('Filter')));
+    $form['filters']['status']['actions']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => count($session) ? t('Refine') : t('Filter'),
+    );
   }
   if (count($session)) {
-    $form['filters']['actions']['undo'] = array('#type' => 'submit', '#value' => t('Undo'));
-    $form['filters']['actions']['reset'] = array('#type' => 'submit', '#value' => t('Reset'));
+    $form['filters']['status']['actions']['undo'] = array('#type' => 'submit', '#value' => t('Undo'));
+    $form['filters']['status']['actions']['reset'] = array('#type' => 'submit', '#value' => t('Reset'));
   }
 
   drupal_add_js('misc/form.js');
 
   return $form;
-}
-
-/**
- * Returns HTML for a skinr administration filter selector.
- *
- * @param $variables
- *   An associative array containing:
- *   - form: A render element representing the form.
- *
- * @ingroup themeable
- */
-function theme_skinr_ui_filters($variables) {
-  $form = $variables['form'];
-  $output = '';
-
-  $output .= '<ul class="clearfix">';
-  if (!empty($form['current'])) {
-    foreach (element_children($form['current']) as $key) {
-      $output .= '<li>' . drupal_render($form['current'][$key]) . '</li>';
-    }
-  }
-  $output .= '</ul>';
-
-  $output .= '<div class="clearfix">';
-
-  if (!empty($form['status']) && count(element_children($form['status']))) {
-    $output .= '<dl class="multiselect">' . (!empty($form['current']) ? '<dt><em>' . t('and') . '</em> ' . t('where') . '</dt>' : '');
-  
-    $output .= '<dd>';
-  
-    foreach (element_children($form['status']) as $key) {
-      $output .= drupal_render($form['status'][$key]);
-    }
-    $output .= '</dd>';
-  
-    $output .= '</dl>';
-  }
-  $output .= drupal_render($form['actions']);
-
-  $output .= '</div>';
-
-  return $output;
 }
 
 /**
@@ -195,8 +167,6 @@ function skinr_ui_list($form, &$form_state) {
   $form['filter'] = skinr_ui_filter_form();
   $form['#submit'][] = 'skinr_ui_filter_form_submit';
   $form['admin'] = skinr_ui_admin_skins();
-  
-  drupal_add_css(drupal_get_path('module', 'skinr') . '/css/skinr_ui.css');
 
   return $form;
 }

@@ -2,6 +2,7 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#957388 by Jacine | sun, Jeff Burnz: Fixed theme_skinr_ui_filters() still uses dl.multiselect markup/styling.
 #948550 by nomonstersinme, moonray: Fixed port views functionality to 7.x.
 #960548 by moonray, Vraja | Jacine: Changed Remove support for template files.
 #906764 by Vraja, DamienMcKenna: Fixed Logic error in handlers.inc skinr_submit_handler().
