@@ -48,14 +48,14 @@ function skinr_skinr_config() {
  *
  * @param $op
  *   What kind of action is being performed. Possible values:
- *   - "form": the form elements for Skinr are being inserted in a form
- *   - "submit": the form has been submitted.
+ *   - 'form': the form elements for Skinr are being inserted in a form.
+ *   - 'submit': the form has been submitted.
  * @param &$form
- *   - For "form", passes in the $form parameter from hook_form_alter().
- *   - For "submit", passes in the $form parameter from hook_form_submit().
+ *   - For 'form', passes in the $form parameter from hook_form_alter().
+ *   - For 'submit', passes in the $form parameter from hook_form_submit().
  * @param $form_state
- *   - For "form", passes in the $form_state parameter from hook_form_alter().
- *   - For "submit", passes in the $form_state parameter from hook_form_submit().
+ *   - For 'form', passes in the $form_state parameter from hook_form_alter().
+ *   - For 'submit', passes in the $form_state parameter from hook_form_submit().
  * @return
  *   The index where we can find our values in Skinr's data structure.
  */
@@ -86,7 +86,7 @@ function rules_skinr_form_index_handler($op, &$form, $form_state) {
  */
 function rules_skinr_preprocess_hook_callback(&$form, $form_state) {
   $preprocess_hooks = array();
-  
+
   if (!empty($form['rule'])) {
     $hooks = explode('__', $form['rule']['rule_type']['#value']);
   }
@@ -98,7 +98,7 @@ function rules_skinr_preprocess_hook_callback(&$form, $form_state) {
     $preprocess_hooks[] = implode('__', $hooks);
     array_pop($hooks);
   }
-  
+
   return $preprocess_hooks;
 }
 
@@ -108,7 +108,7 @@ function rules_skinr_preprocess_hook_callback(&$form, $form_state) {
  * @param &$variables
  *   Passes in the $variables parameter from module_preprocess().
  * @return
- *   The index where we can find our values in Skinrs data structure. If an
+ *   The index where we can find our values in Skinr's data structure. If an
  *   array is returned, it will loop through each index in Skinr's data
  *   structure and merge the returned classes.
  */

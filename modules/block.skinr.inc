@@ -12,7 +12,7 @@
  */
 
 /**
- * Implementation of hook_skinr_config().
+ * Implements hook_skinr_config().
  */
 function block_skinr_config() {
   $data['block']['form']['block_admin_configure'] = array(
@@ -49,16 +49,17 @@ function block_skinr_config() {
  *
  * @param $op
  *   What kind of action is being performed. Possible values:
- *   - "form": the form elements for Skinr are being inserted in a form
- *   - "submit": the form has been submitted.
+ *   - 'form': the form elements for Skinr are being inserted in a form.
+ *   - 'submit': the form has been submitted.
  * @param &$form
- *   - For "form", passes in the $form parameter from hook_form_alter().
- *   - For "submit", passes in the $form parameter from hook_form_submit().
+ *   - For 'form', passes in the $form parameter from hook_form_alter().
+ *   - For 'submit', passes in the $form parameter from hook_form_submit().
  * @param $form_state
- *   - For "form", passes in the $form_state parameter from hook_form_alter().
- *   - For "submit", passes in the $form_state parameter from hook_form_submit().
+ *   - For 'form', passes in the $form_state parameter from hook_form_alter().
+ *   - For 'submit', passes in the $form_state parameter from hook_form_submit().
+ *
  * @return
- *   The index where we can find our values in Skinrs data structure.
+ *   The index where we can find our values in Skinr's data structure.
  */
 function block_skinr_form_index_handler($op, &$form, $form_state) {
   switch ($op) {
@@ -71,14 +72,15 @@ function block_skinr_form_index_handler($op, &$form, $form_state) {
 }
 
 /**
- * Skinr preprocess_hook_callback.
+ * Skinr preprocess hook callback.
  *
  * @param &$form
  *   Passes in the $form parameter from hook_form_alter().
  * @param $form_state
  *   Passes in the $form_state parameter from hook_form_alter().
+ *
  * @return
- *   The preprocess_hook we wish to use.
+ *   An array of preprocess hooks we wish to use.
  */
 function block_skinr_preprocess_hook_callback(&$form, $form_state) {
   $preprocess_hooks = array();
@@ -107,8 +109,9 @@ function block_skinr_preprocess_hook_callback(&$form, $form_state) {
  *
  * @param &$variables
  *   Passes in the $variables parameter from module_preprocess().
+ *
  * @return
- *   The index where we can find our values in Skinrs data structure. If an
+ *   The index where we can find our values in Skinr's data structure. If an
  *   array is returned, it will loop through each index in Skinr's data
  *   structure and merge the returned classes.
  */
@@ -121,6 +124,7 @@ function block_skinr_preprocess_index_handler(&$variables) {
  *
  * @param &$variables
  *   Passes in the $variables parameter from skinr_preprocess().
+ *
  * @return
  *   An array. Each value is an array that forms the function arguments for
  *   menu_contextual_links(). For example:

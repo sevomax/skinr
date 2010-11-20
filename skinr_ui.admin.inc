@@ -3,7 +3,7 @@
 
 /**
  * @file
- * Admin page callbacks for the skinr module.
+ * Admin page callbacks for the Skinr module.
  */
 
 /**
@@ -21,6 +21,9 @@ function skinr_ui_skinr_operations() {
 
 /**
  * List skinr administration filters that can be applied.
+ *
+ * @return
+ *   An array of filters.
  */
 function skinr_ui_filters() {
   // Theme filter.
@@ -57,7 +60,11 @@ function skinr_ui_filters() {
 }
 
 /**
- * Return form for skinr administration filters.
+ * Form builder for the Skinr administration filters form.
+ *
+ * @ingroup forms
+ *
+ * @todo This function is missing the $form and $form_state parameters.
  */
 function skinr_ui_filter_form() {
   $session = &$_SESSION['skinr_ui_overview_filter'];
@@ -129,7 +136,7 @@ function skinr_ui_filter_form() {
 }
 
 /**
- * Process result from node administration filter form.
+ * Form submission handler for skinr_ui_filter_form().
  */
 function skinr_ui_filter_form_submit($form, &$form_state) {
   $filters = skinr_ui_filters();
@@ -158,7 +165,9 @@ function skinr_ui_filter_form_submit($form, &$form_state) {
 }
 
 /**
- * Menu callback; displays the skinr listing page.
+ * Form builder for the Skinr settings overview form.
+ *
+ * @ingroup forms
  */
 function skinr_ui_list($form, &$form_state) {
   if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
@@ -172,7 +181,9 @@ function skinr_ui_list($form, &$form_state) {
 }
 
 /**
- * Form builder: Builds the node administration overview.
+ * Subform builder for the Skinr settings overview form.
+ *
+ * @ingroup forms
  */
 function skinr_ui_admin_skins() {
   $session = !empty($_SESSION['skinr_ui_overview_filter']) && is_array($_SESSION['skinr_ui_overview_filter']) ? $_SESSION['skinr_ui_overview_filter'] : array();
@@ -279,7 +290,7 @@ function skinr_ui_admin_skins() {
       }
     }
   }
-  
+
   // Sort table.
   array_multisort($sorts, $sort, $options);
 
@@ -296,7 +307,7 @@ function skinr_ui_admin_skins() {
 }
 
 /**
- * Validate skinr_ui_list form submissions.
+ * Form validation handler for skinr_ui_list().
  *
  * Check if any skinr settings have been selected to perform the chosen
  * 'Update option' on.
@@ -309,7 +320,7 @@ function skinr_ui_admin_skins_validate($form, &$form_state) {
 }
 
 /**
- * Process skinr_ui_list form submissions.
+ * Form submission handler for skinr_ui_list().
  *
  * Execute the chosen 'Update option' on the selected skinr settings.
  */
@@ -337,6 +348,14 @@ function skinr_ui_admin_skins_submit($form, &$form_state) {
   }
 }
 
+/**
+ * Form builder for the confirmation form when deleting multiple Skinr settings.
+ *
+ * @param $skins
+ *   An array of skins to delete.
+ *
+ * @ingroup forms
+ */
 function skinr_ui_multiple_delete_confirm($form, &$form_state, $skins) {
   $themes = list_themes();
 
@@ -362,6 +381,9 @@ function skinr_ui_multiple_delete_confirm($form, &$form_state, $skins) {
                     t('Delete'), t('Cancel'));
 }
 
+/**
+ * Form submission handler for skinr_ui_multiple_delete_confirm().
+ */
 function skinr_ui_multiple_delete_confirm_submit($form, &$form_state) {
   if ($form_state['values']['confirm']) {
     foreach ($form_state['values']['skins'] as $skin => $value) {
@@ -375,7 +397,7 @@ function skinr_ui_multiple_delete_confirm_submit($form, &$form_state) {
 
       skinr_set($skinr);
     }
-    
+
     $count = count($form_state['values']['skins']);
     if ($count == 1) {
       watchdog('content', 'Deleted 1 skinr setting.');
@@ -389,7 +411,9 @@ function skinr_ui_multiple_delete_confirm_submit($form, &$form_state) {
 }
 
 /**
- * Menu callback; displays the skinr settings administration form.
+ * Form builder for the Skinr settings administration form.
+ *
+ * @ingroup forms
  */
 function skinr_ui_settings($form, &$form_state) {
   $form = array();
@@ -416,7 +440,7 @@ function skinr_ui_settings($form, &$form_state) {
 }
 
 /**
- * Validation handler for skinr settings administration form.
+ * Form validation handler for skinr_ui_settings().
  */
 function skinr_ui_settings_validate(&$form, &$form_state) {
   if (empty($form_state['values']['skinr_overlay_width'])) {
@@ -428,7 +452,7 @@ function skinr_ui_settings_validate(&$form, &$form_state) {
 }
 
 /**
- * Menu callback; displays a listing of all non-theme skinsets.
+ * Form builder for the non-theme skinsets listing form.
  *
  * @ingroup forms
  * @see skinr_ui_admin_skinsets_submit()
@@ -512,7 +536,7 @@ function _skinr_ui_admin_skinsets_build_row($info, $extra) {
   $form['screenshot'] = array(
     '#markup' => file_exists($info['screenshot']) ? theme('image', array('path' => $info['screenshot'], 'alt' => t('Screenshot for %theme theme', array('%theme' => $info['name'])), 'attributes' => array('class' => 'screenshot'), 'getsize' => FALSE)) : t('no screenshot'),
   );
-  
+
   $form['name'] = array(
     '#markup' => $info['name'],
   );
@@ -572,13 +596,22 @@ function _skinr_ui_admin_skinsets_build_row($info, $extra) {
 
 /**
  * Helper function to sort skinsets by the name in their .info file.
+ *
+ * @param $a
+ *   The first skinset to compare.
+ * @param $b
+ *   The second skinset to compare.
+ *
+ * @return
+ *   Returns < 0 if $a is less than $b; > 0 if $a is greater than $b, and 0
+ *   if they are equal.
  */
 function skinr_ui_sort_by_info_name($a, $b) {
   return strcasecmp($a->info['name'], $b->info['name']);
 }
 
 /**
- * Process skinr_ui_admin_skinsets form submissions.
+ * Form submission handler for skinr_ui_admin_skinsets().
  */
 function skinr_ui_admin_skinsets_submit($form, &$form_state) {
   // Store list of previously enabled themes and disable all themes.
@@ -631,18 +664,18 @@ function theme_skinr_ui_admin_skinsets_fieldset($variables) {
   foreach (element_children($form) as $key) {
     // Stick it into $skinset for easier accessing.
     $skinset = $form[$key];
-    
+
     $row = array();
 
     // Screenshot.
     $row[] = array('data' => $skinset['screenshot'], 'class' => array('screenshot'));
-    
+
     // Name.
     $row[] = theme('skinr_ui_admin_skinsets_info', array(
       'name' => drupal_render($skinset['name']),
       'description' => drupal_render($skinset['description'])
     ));
-    
+
     // Version.
     $row[] = drupal_render($skinset['version']);
 
@@ -691,7 +724,7 @@ function theme_skinr_ui_admin_skinsets_incompatible($variables) {
 }
 
 /**
- * Menu callback; displays a listing of all skins in a skinsets, allowing you
+ * Menu callback; displays a listing of all skins in a skinset, allowing you
  * to enable or disable them individually for each theme.
  *
  * @ingroup forms
@@ -804,13 +837,13 @@ function theme_skinr_ui_admin_skinsets_settings_fieldset($variables) {
   foreach (element_children($form) as $key) {
     // Stick it into $skin for easier accessing.
     $skin = $form[$key];
-    
+
     $row = array();
 
     // Enabled.
     unset($skin['enable']['#title']);
     $row[] = array('class' => array('checkbox'), 'data' => drupal_render($skin['enable']));
-    
+
     // Name.
     $row[] = theme('skinr_ui_admin_skinsets_settings_info', array(
       'name' => drupal_render($skin['name']),
@@ -840,7 +873,7 @@ function theme_skinr_ui_admin_skinsets_settings_info($variables) {
 }
 
 /**
- * Process skinr_ui_admin_skinsets_settings form submissions.
+ * Process skinr_ui_admin_skinsets_settings() form submissions.
  */
 function skinr_ui_admin_skinsets_settings_submit($form, &$form_state) {
   if ($form_state['values']['op'] == t('Save configuration')) {
@@ -852,7 +885,7 @@ function skinr_ui_admin_skinsets_settings_submit($form, &$form_state) {
         }
       }
     }
-    
+
     foreach ($statuses as $name => $status) {
       $skinr_skin = new StdClass();
       $skinr_skin->name = $form_state['values']['skinset'];
@@ -888,7 +921,13 @@ function skinr_ui_admin_skinsets_settings_submit($form, &$form_state) {
 }
 
 /**
- * Menu callback; displays Skinr settings export form.
+ * Form builder for the Skinr settings export form.
+ *
+ * @param $theme
+ *   (optional) The name of the theme to export Skinr settings for. If no
+ *   theme name is provided a theme selector is shown.
+ *
+ * @ingroup forms
  */
 function skinr_ui_export_form($form, &$form_state, $theme = NULL) {
   $form = array();
@@ -937,7 +976,7 @@ function skinr_ui_export_form($form, &$form_state, $theme = NULL) {
       if (!empty($theme->info['hidden'])) {
         continue;
       }
-      
+
       if ($theme->name == $current_theme) {
         // Do nothing.
       }
@@ -966,7 +1005,7 @@ function skinr_ui_export_form($form, &$form_state, $theme = NULL) {
 }
 
 /**
- * Validation handler for skinr settings export form.
+ * Form validation handler for skinr_ui_export_form().
  */
 function skinr_ui_export_form_validate(&$form, &$form_state) {
   if (!empty($form_state['values']['theme']) && preg_match('/[^a-zA-Z0-9_]/', $form_state['values']['theme'])) {
@@ -975,14 +1014,16 @@ function skinr_ui_export_form_validate(&$form, &$form_state) {
 }
 
 /**
- * Submit handler for skinr settings export form.
+ * Form submission handler for skinr_ui_export_form().
  */
 function skinr_ui_export_form_submit(&$form, &$form_state) {
   drupal_goto('admin/appearance/skinr/export/' . str_replace('_', '-', $form_state['values']['theme']));
 }
 
 /**
- * Menu callback; displays Skinr settings import form.
+ * Form builder for the Skinr settings import form.
+ *
+ * @ingroup forms
  */
 function skinr_ui_import_form($form, &$form_state) {
   $form = array();
@@ -1031,7 +1072,7 @@ function skinr_ui_import_form($form, &$form_state) {
 }
 
 /**
- * Validation handler for Skinr settings import form.
+ * Form validation handler for skinr_ui_import_form().
  */
 function skinr_ui_import_form_validate(&$form, &$form_state) {
   if (empty($form_state['values']['skinr_settings'])) {
@@ -1073,7 +1114,7 @@ function skinr_ui_import_form_validate(&$form, &$form_state) {
 }
 
 /**
- * Submit handler for skinr settings import form.
+ * Form submission handler for skinr_ui_import_form().
  */
 function skinr_ui_import_form_submit(&$form, &$form_state) {
   foreach ($form_state['skinrs'] as $module => $skinrs) {
@@ -1089,7 +1130,16 @@ function skinr_ui_import_form_submit(&$form, &$form_state) {
 }
 
 /**
- * Menu callback; displays the delete confirmation for a skinr page rule.
+ * Form builder for the skinr settings delete confirmation form.
+ *
+ * @param $theme
+ *   The name of the theme to delete a setting for.
+ * @param $module
+ *   The module to delete a setting for.
+ * @param $sid
+ *   The ID of the setting to delete.
+ *
+ * @ingroup forms
  */
 function skinr_ui_delete_confirm($form, &$form_state, $theme, $module, $sid) {
   $form['theme'] = array(
@@ -1116,6 +1166,9 @@ function skinr_ui_delete_confirm($form, &$form_state, $theme, $module, $sid) {
   );
 }
 
+/**
+ * Form submission handler for skinr_ui_delete_confirm().
+ */
 function skinr_ui_delete_confirm_submit($form, &$form_state) {
   if ($form_state['values']['confirm']) {
     $skinr = new stdClass();

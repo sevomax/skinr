@@ -12,7 +12,7 @@
  */
 
 /**
- * Implementation of hook_skinr_config().
+ * Implements hook_skinr_config().
  */
 function node_skinr_config() {
   $data['node']['form']['node_type_form'] = array(
@@ -40,16 +40,17 @@ function node_skinr_config() {
  *
  * @param $op
  *   What kind of action is being performed. Possible values:
- *   - "form": the form elements for Skinr are being inserted in a form
- *   - "submit": the form has been submitted.
+ *   - 'form': the form elements for Skinr are being inserted in a form.
+ *   - 'submit': the form has been submitted.
  * @param &$form
- *   - For "form", passes in the $form parameter from hook_form_alter().
- *   - For "submit", passes in the $form parameter from hook_form_submit().
+ *   - For 'form', passes in the $form parameter from hook_form_alter().
+ *   - For 'submit', passes in the $form parameter from hook_form_submit().
  * @param $form_state
- *   - For "form", passes in the $form_state parameter from hook_form_alter().
- *   - For "submit", passes in the $form_state parameter from hook_form_submit().
+ *   - For 'form', passes in the $form_state parameter from hook_form_alter().
+ *   - For 'submit', passes in the $form_state parameter from hook_form_submit().
+ *
  * @return
- *   The index where we can find our values in Skinrs data structure.
+ *   The index where we can find our values in Skinr's data structure.
  */
 function node_skinr_form_index_handler($op, &$form, $form_state) {
   switch ($op) {
@@ -57,7 +58,7 @@ function node_skinr_form_index_handler($op, &$form, $form_state) {
       return $form['#node_type']->type;
 
     case 'submit':
-      // Clear old variable before we set a new one if the node type has changed
+      // Clear old variable before we set a new one if the node type has changed.
       if ($form_state['values']['old_type'] != $form_state['values']['type']) {
         foreach ($form_state['values']['skinr_settings']['node_group'] as $theme_name => $theme_data) {
           $skinr = new stdClass();
@@ -74,14 +75,15 @@ function node_skinr_form_index_handler($op, &$form, $form_state) {
 }
 
 /**
- * Skinr preprocess_hook_callback.
+ * Skinr preprocess hook callback.
  *
  * @param &$form
  *   Passes in the $form parameter from hook_form_alter().
  * @param $form_state
  *   Passes in the $form_state parameter from hook_form_alter().
+ *
  * @return
- *   The preprocess_hook we wish to use.
+ *   An array of preprocess hooks we wish to use.
  */
 function node_skinr_preprocess_hook_callback(&$form, $form_state) {
   $preprocess_hooks = array();
@@ -102,8 +104,9 @@ function node_skinr_preprocess_hook_callback(&$form, $form_state) {
  *
  * @param &$variables
  *   Passes in the $variables parameter from module_preprocess().
+ *
  * @return
- *   The index where we can find our values in Skinrs data structure. If an
+ *   The index where we can find our values in Skinr's data structure. If an
  *   array is returned, it will loop through each index in Skinr's data
  *   structure and merge the returned classes.
  */

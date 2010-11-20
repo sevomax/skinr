@@ -13,7 +13,7 @@
  */
 
 /**
- * Implementation of hook_skinr_config().
+ * Implements hook_skinr_config().
  */
 function views_skinr_config() {
   $data['views']['form']['views_ui_edit_display_form'] = array(
@@ -48,16 +48,17 @@ function views_skinr_config() {
  *
  * @param $op
  *   What kind of action is being performed. Possible values:
- *   - "form": the form elements for Skinr are being inserted in a form
- *   - "submit": the form has been submitted.
+ *   - 'form': the form elements for Skinr are being inserted in a form.
+ *   - 'submit': the form has been submitted.
  * @param &$form
- *   - For "form", passes in the $form parameter from hook_form_alter().
- *   - For "submit", passes in the $form parameter from hook_form_submit().
+ *   - For 'form', passes in the $form parameter from hook_form_alter().
+ *   - For 'submit', passes in the $form parameter from hook_form_submit().
  * @param $form_state
- *   - For "form", passes in the $form_state parameter from hook_form_alter().
- *   - For "submit", passes in the $form_state parameter from hook_form_submit().
+ *   - For 'form', passes in the $form_state parameter from hook_form_alter().
+ *   - For 'submit', passes in the $form_state parameter from hook_form_submit().
+ *
  * @return
- *   The index where we can find our values in Skinrs data structure.
+ *   The index where we can find our values in Skinr's data structure.
  */
 function views_skinr_form_index_handler($op, &$form, $form_state) {
   switch ($op) {
@@ -87,14 +88,15 @@ function views_skinr_form_index_handler($op, &$form, $form_state) {
  *
  * @param $op
  *   What kind of action is being performed. Possible values:
- *   - "access skinr": access to edit skinr's selector
- *   - "access skinr classes": access to edit skinr's additional classes
+ *   - 'access skinr': access to edit skinr's settings.
+ *   - 'access skinr classes': access to edit skinr's additional classes.
  * @param &$form
  *   Passes in the $form parameter from hook_form_alter().
  * @param $form_state
  *   Passes in the $form_state parameter from hook_form_alter().
+ *
  * @return
- *   TRUE if we get access, FALSE if we don't.
+ *   TRUE if we get access, FALSE otherwise.
  */
 function views_skinr_access_handler_display($op, &$form, $form_state) {
   if ($access = skinr_access_handler($op, $form, $form_state)) {
@@ -147,8 +149,9 @@ function views_skinr_access_handler_view($op, &$form, $form_state) {
  * @param $form_settings
  *   The settings from hook_skinr_config() for the form that's currently being
  *   processed.
+ *
  * @return
- *   A skinr object.
+ *   A skinr settings object.
  */
 function views_skinr_data_handler(&$form, $form_state, $theme, $module, $form_settings) {
   // Ensure we have the required index_handler
@@ -182,16 +185,15 @@ function views_skinr_data_handler(&$form, $form_state, $theme, $module, $form_se
 /**
  * Skinr submit handler.
  *
- * @param $op
- *   What kind of action is being performed. Possible values:
- *   - "access skinr": access to edit skinr's selector
- *   - "access skinr classes": access to edit skinr's additional classes
  * @param &$form
- *   Passes in the $form parameter from hook_form_alter().
+ *   Passes in the $form parameter from hook_form_submit().
  * @param $form_state
- *   Passes in the $form_state parameter from hook_form_alter().
- * @return
- *   TRUE if we get access, FALSE if we don't.
+ *   Passes in the $form_state parameter from hook_form_submit().
+ * @param $module
+ *   The module that is currently being processed.
+ * @param $form_settings
+ *   The settings from hook_skinr_config() for the form that's currently being
+ *   processed.
  */
 function views_skinr_submit_handler_display(&$form, $form_state, $module, $form_settings) {
   foreach ($form_state['values']['skinr_settings'][$module .'_group'] as $theme_name => $theme) {
@@ -268,14 +270,15 @@ function views_skinr_submit_handler_view(&$form, $form_state, $module, $form_set
 }
 
 /**
- * Skinr form preprocess_hook callback.
+ * Skinr form preprocess hook callback.
  *
  * @param &$form
  *   Passes in the $form parameter from hook_form_alter().
  * @param $form_state
  *   Passes in the $form_state parameter from hook_form_alter().
+ *
  * @return
- *   The preprocess_hook we wish to use.
+ *   An array of preprocess hooks we wish to use.
  */
 function views_skinr_preprocess_hook_callback(&$form, $form_state) {
   $preprocess_hooks = array('views_view');
@@ -323,8 +326,9 @@ function _views_skinr_sidinfo($sid) {
  *
  * @param &$variables
  *   Passes in the $variables parameter from module_preprocess().
+ *
  * @return
- *   The index where we can find our values in Skinrs data structure. If an
+ *   The index where we can find our values in Skinr's data structure. If an
  *   array is returned, it will loop through each index in Skinr's data
  *   structure and merge the returned classes.
  */

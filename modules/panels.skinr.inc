@@ -12,7 +12,7 @@
  */
 
 /**
- * Implementation of hook_skinr_config().
+ * Implements hook_skinr_config().
  */
 function panels_skinr_config() {
   $data['panels']['form']['panels_edit_style_settings_form'] = array(
@@ -57,16 +57,17 @@ function panels_skinr_config() {
  *
  * @param $op
  *   What kind of action is being performed. Possible values:
- *   - "form": the form elements for Skinr are being inserted in a form
- *   - "submit": the form has been submitted.
+ *   - 'form': the form elements for Skinr are being inserted in a form.
+ *   - 'submit': the form has been submitted.
  * @param &$form
- *   - For "form", passes in the $form parameter from hook_form_alter().
- *   - For "submit", passes in the $form parameter from hook_form_submit().
+ *   - For 'form', passes in the $form parameter from hook_form_alter().
+ *   - For 'submit', passes in the $form parameter from hook_form_submit().
  * @param $form_state
- *   - For "form", passes in the $form_state parameter from hook_form_alter().
- *   - For "submit", passes in the $form_state parameter from hook_form_submit().
+ *   - For 'form', passes in the $form_state parameter from hook_form_alter().
+ *   - For 'submit', passes in the $form_state parameter from hook_form_submit().
+ *
  * @return
- *   The index where we can find our values in Skinrs data structure.
+ *   The index where we can find our values in Skinr's data structure.
  */
 function panels_skinr_form_index_handler($op, &$form, $form_state) {
   switch ($op) {
@@ -88,14 +89,15 @@ function panels_skinr_form_index_handler($op, &$form, $form_state) {
  *
  * @param $op
  *   What kind of action is being performed. Possible values:
- *   - "access skinr": access to edit skinr's selector
- *   - "access skinr classes": access to edit skinr's additional classes
+ *   - 'access skinr': access to edit Skinr's settings.
+ *   - 'access skinr classes': access to edit Skinr's additional classes.
  * @param &$form
  *   Passes in the $form parameter from hook_form_alter().
  * @param $form_state
  *   Passes in the $form_state parameter from hook_form_alter().
+ *
  * @return
- *   TRUE if we get access, FALSE if we don't.
+ *   TRUE if we get access, FALSE otherwise.
  */
 function panels_skinr_access_handler_display($op, &$form, $form_state) {
   // We don't want the skinr settings form to appear on this form. We only want
@@ -171,8 +173,9 @@ function panels_skinr_access_handler_display($op, &$form, $form_state) {
  * @param $form_settings
  *   The settings from hook_skinr_config() for the form that's currently being
  *   processed.
+ *
  * @return
- *   TRUE if we get access, FALSE if we don't.
+ *   A skinr settings object.
  */
 function panels_skinr_data_handler(&$form, $form_state, $theme, $module, $form_settings) {
   // Ensure we have the required index_handler.
@@ -200,16 +203,15 @@ function panels_skinr_data_handler(&$form, $form_state, $theme, $module, $form_s
 /**
  * Skinr submit handler.
  *
- * @param $op
- *   What kind of action is being performed. Possible values:
- *   - "access skinr": access to edit skinr's selector
- *   - "access skinr classes": access to edit skinr's additional classes
  * @param &$form
- *   Passes in the $form parameter from hook_form_alter().
+ *   Passes in the $form parameter from hook_form_submit().
  * @param $form_state
- *   Passes in the $form_state parameter from hook_form_alter().
- * @return
- *   TRUE if we get access, FALSE if we don't.
+ *   Passes in the $form_state parameter from hook_form_submit().
+ * @param $module
+ *   The module that is currently being processed.
+ * @param $form_settings
+ *   The settings from hook_skinr_config() for the form that's currently being
+ *   processed.
  */
 function panels_skinr_submit_handler_settings(&$form, $form_state, $module, $form_settings) {
   foreach ($form_state['values']['skinr_settings'][$module . '_group'] as $theme_name => $theme) {
@@ -261,7 +263,7 @@ function panels_skinr_submit_handler_settings(&$form, $form_state, $module, $for
 }
 
 /**
- * @todo remove values from skinr if a display is deleted
+ * @todo Remove values from skinr if a display is deleted.
  */
 function panels_skinr_submit_handler_display(&$form, $form_state, $module, $form_settings) {
   $form_id = $form_state['values']['form_id'];
@@ -324,14 +326,15 @@ function _panels_skinr_save_and_clear_cache($did) {
 }
 
 /**
- * Skinr preprocess_hook_callback.
+ * Skinr preprocess hook callback.
  *
  * @param &$form
  *   Passes in the $form parameter from hook_form_alter().
  * @param $form_state
  *   Passes in the $form_state parameter from hook_form_alter().
+ *
  * @return
- *   The preprocess_hook we wish to use.
+ *   An array of preprocess hooks we wish to use.
  */
 function panels_skinr_preprocess_hook_callback(&$form, $form_state) {
   switch ($form_state['type']) {
@@ -345,14 +348,15 @@ function panels_skinr_preprocess_hook_callback(&$form, $form_state) {
 }
 
 /**
- * Skinr preprocess_hook_callback.
+ * Skinr preprocess hook callback.
  *
  * @param &$form
  *   Passes in the $form parameter from hook_form_alter().
  * @param $form_state
  *   Passes in the $form_state parameter from hook_form_alter().
+ *
  * @return
- *   The preprocess_hook we wish to use.
+ *   An array of preprocess hooks we wish to use.
  */
 function panels_skinr_ajax_preprocess_hook_callback(&$form, $form_state) {
   if (strpos($form['skinr']['sid']['#value'], '-region-') !== FALSE) {
@@ -371,8 +375,9 @@ function panels_skinr_ajax_preprocess_hook_callback(&$form, $form_state) {
  *
  * @param &$variables
  *   Passes in the $variables parameter from module_preprocess().
+ *
  * @return
- *   The index where we can find our values in Skinrs data structure. If an
+ *   The index where we can find our values in Skinr's data structure. If an
  *   array is returned, it will loop through each index in Skinr's data
  *   structure and merge the returned classes.
  */
@@ -388,7 +393,7 @@ function panels_skinr_preprocess_index_handler(&$variables) {
 // Panels hooks.
 
 /**
- * Implementation of hook_ctools_plugin_directory() to let the system know
+ * Implements hook_ctools_plugin_directory() to let the system know
  * we implement panels plugins.
  */
 function skinr_ctools_plugin_directory($module, $plugin) {

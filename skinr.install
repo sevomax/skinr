@@ -7,7 +7,7 @@
  */
 
 /**
- * Implementation of hook_schema.
+ * Implements hook_schema().
  */
 function skinr_schema() {
   $schema['skinr'] = array(
@@ -181,7 +181,7 @@ function skinr_schema() {
 }
 
 /**
- * Implementation of hook_uninstall().
+ * Implements hook_uninstall().
  */
 function skinr_uninstall() {
   // Remove all skinr variables.

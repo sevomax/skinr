@@ -3,7 +3,7 @@
 
 /**
  * @file
- * Admin page callbacks for the skinr module.
+ * Admin page callbacks for Skinr module's rules.
  */
 
 /**
@@ -54,6 +54,8 @@ function skinr_rules() {
 
 /**
  * Menu callback; displays the edit form for a skinr rule.
+ *
+ * @ingroup forms
  */
 function skinr_rule_add($form, &$form_state) {
   $form = array();
@@ -70,7 +72,7 @@ function skinr_rule_add($form, &$form_state) {
     '#description' => t('Descriptive title for this rule; used by administrators.'),
     '#required' => TRUE,
   );
-  
+
   $regions = array();
   foreach (list_themes() as $key => $theme) {
     $regions += system_region_list($key);
@@ -96,6 +98,9 @@ function skinr_rule_add($form, &$form_state) {
   return $form;
 }
 
+/**
+ * Process skinr_rule_add() submissions.
+ */
 function skinr_rule_add_submit($form, &$form_state) {
   $rule = new stdClass();
   $rule->rid = NULL;
@@ -114,6 +119,11 @@ function skinr_rule_add_submit($form, &$form_state) {
 
 /**
  * Menu callback; displays the edit form for a skinr rule.
+ *
+ * @param $rid
+ *   The rule ID.
+ *
+ * @ingroup forms
  */
 function skinr_rule_edit($form, &$form_state, $rid = NULL) {
   $form = array();
@@ -216,6 +226,9 @@ function skinr_rule_edit($form, &$form_state, $rid = NULL) {
   return $form;
 }
 
+/**
+ * Process skinr_rule_edit() submissions.
+ */
 function skinr_rule_edit_submit($form, &$form_state) {
   $rule = new stdClass();
   $rule->rid = !empty($form_state['values']['rid']) ? $form_state['values']['rid'] : NULL;
@@ -232,6 +245,11 @@ function skinr_rule_edit_submit($form, &$form_state) {
   $form_state['redirect'] = 'admin/appearance/skinr/rules';
 }
 
+/**
+ * Called from within the rule edit form; redirects to skinr_rule_delete_confirm().
+ *
+ * @ingroup forms
+ */
 function skinr_rule_delete_submit($form, &$form_state) {
   $destination = '';
   if (isset($_REQUEST['destination'])) {
@@ -243,6 +261,11 @@ function skinr_rule_delete_submit($form, &$form_state) {
 
 /**
  * Menu callback; displays the delete confirmation for a skinr rule.
+ *
+ * @param $rid
+ *   The rule ID.
+ *
+ * @ingroup forms
  */
 function skinr_rule_delete_confirm($form, &$form_state, $rid) {
   $form['rid'] = array(
@@ -260,6 +283,9 @@ function skinr_rule_delete_confirm($form, &$form_state, $rid) {
   );
 }
 
+/**
+ * Process skinr_rule_delete_confirm() submissions.
+ */
 function skinr_rule_delete_confirm_submit($form, &$form_state) {
   if ($form_state['values']['confirm']) {
     skinr_rule_delete($form_state['values']['rid']);

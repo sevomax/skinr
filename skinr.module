@@ -2,7 +2,12 @@
 // $Id$
 
 /**
- * Implementation of hook_help().
+ * @file
+ * Handles core Skinr functionality.
+ */
+
+/**
+ * Implements hook_help().
  */
 function skinr_help($path, $arg) {
   switch ($path) {
@@ -30,7 +35,7 @@ function skinr_module_implements_alter(&$implementations, $hook) {
 }
 
 /**
- * Implementation of hook_init().
+ * Implements hook_init().
  */
 function skinr_init() {
   module_load_include('inc', 'skinr', 'skinr.handlers');
@@ -38,7 +43,7 @@ function skinr_init() {
 }
 
 /**
- * Implementation of hook_preprocess().
+ * Implements hook_preprocess().
  */
 function skinr_preprocess(&$variables, $hook) {
   // Fix for update script.
@@ -73,7 +78,7 @@ function skinr_preprocess(&$variables, $hook) {
         }
         $variables['classes_array'] = array_merge($variables['classes_array'], $extracted['classes']);
 
-        // Need to add a hook for skinr_ui to plug into.
+        // Add a hook for skinr_ui to plug into: hook_skinr_preprocess_alter().
         $data = array(
           'hook' => $hook,
           'variables' => &$variables,
@@ -85,6 +90,23 @@ function skinr_preprocess(&$variables, $hook) {
   }
 }
 
+/**
+ * Helper function to extract classes, JS and CSS files.
+ *
+ * @param $module
+ *   The module these settings applies to.
+ * @param $sids
+ *   The settings ID, or an array of settings IDs.
+ * @param $settings
+ *   Skinr configuration data for the desired module.
+ * @param $theme
+ *   The theme these settings apply to. If no theme name is provided, the
+ *   current theme will be used.
+ *
+ * @return
+ *   An array containing the module, sids, classes, CSS, JS, template to be
+ *   applied.
+ */
 function skinr_skin_extract($module, $sids, $settings, $theme = NULL) {
   if (empty($sids)) {
     return FALSE;
@@ -124,7 +146,7 @@ function skinr_skin_extract($module, $sids, $settings, $theme = NULL) {
 }
 
 /**
- * Helper function to fetch all css or js files from an array of skins.
+ * Helper function to fetch all CSS or JS files from an array of skins.
  *
  * @param $skins
  *   A an array of available skins.
@@ -242,9 +264,17 @@ function skinr_skin_get_files($skins, $type, $theme = NULL) {
 }
 
 /**
- * Helper fuction to add CSS and JS files.
+ * Helper function to add CSS and JS files to a page.
  *
- * The function checks an array of paths for the existence of the file to account for base themes.
+ * This function uses drupal_add_css() and drupal_add_js() to add the files.
+ *
+ * @param $filename
+ *   The name of the file to add.
+ * @param $type
+ *   The type of file. Options include: 'css' and 'js'.
+ * @param $media
+ *   (optional) The media type for the stylesheet, e.g., 'all', 'print',
+ *   'screen'. Only required if $type is set to 'css'.
  */
 function _skinr_add_file($filename, $type, $media = NULL) {
   if ($type == 'css') {
@@ -257,6 +287,12 @@ function _skinr_add_file($filename, $type, $media = NULL) {
 
 /**
  * Helper function to flatten an array of classes settings.
+ *
+ * @param $skins
+ *   The array of skins to flatten.
+ *
+ * @return
+ *   An array of classes.
  */
 function skinr_flatten_skins_array($skins) {
   $return = array();
@@ -277,10 +313,16 @@ function skinr_flatten_skins_array($skins) {
 }
 
 // ------------------------------------------------------------------
-// Page rule functions.
+// Rule functions.
 
 /**
- * Save a skinr page rule object.
+ * Save a skinr rule object.
+ *
+ * @param $rule
+ *   A rule object.
+ *
+ * @return
+ *   The rule ID.
  */
 function skinr_rule_save($rule) {
   drupal_write_record('skinr_rules', $rule, !empty($rule->rid) ? array('rid') : array());
@@ -288,7 +330,14 @@ function skinr_rule_save($rule) {
 }
 
 /**
- * Load a skinr page rule object.
+ * Load a skinr rule object.
+ *
+ * @param $rid
+ *   (optional) The rule ID.
+ *
+ * @return
+ *   A rule object. If no $rid is specified an array of all rules will be
+ *   returned.
  */
 function skinr_rule_load($rid = NULL) {
   $rids = (isset($rid) ? array($rid) : array());
@@ -297,7 +346,17 @@ function skinr_rule_load($rid = NULL) {
 }
 
 /**
- * Loads multiple skinr page rule objects.
+ * Loads multiple skinr rule objects.
+ *
+ * @param $rids
+ *   An array of rule IDs. Optional.
+ * @param $conditions
+ *   An array of conditions on the {skinr_rules} table in the form 'field' =>
+ *   $value.
+ *
+ * @return
+ *   An array of rule objects indexed by rid. If $rids is not provided, all
+ *   rules are returned.
  */
 function skinr_rule_load_multiple($rids = array(), $conditions = array()) {
   $rules = array();
@@ -316,7 +375,10 @@ function skinr_rule_load_multiple($rids = array(), $conditions = array()) {
 }
 
 /**
- * Delete a skinr page rule object.
+ * Delete a skinr rule object.
+ *
+ * @param $rid
+ *   The rule ID.
  */
 function skinr_rule_delete($rid) {
   if ($rule = skinr_rule_load($rid)) {
@@ -330,6 +392,14 @@ function skinr_rule_delete($rid) {
   }
 }
 
+/**
+ * Determine whether a rule is applies to the current page or not.
+ *
+ * @param $rid
+ *   The rule ID.
+ *
+ * @todo Rename this function to skinr_rule_is_visible().
+ */
 function skinr_rule_visible($rid) {
   global $user;
 
@@ -370,7 +440,12 @@ function skinr_rule_visible($rid) {
 // Include file helpers.
 
 /**
- * Load skinr files on behalf of modules.
+ * Include files as necessary.
+ *
+ * @param $file
+ *   The file to include. The filename needs to be prefixed with the
+ *   implementing module's name (e.g. MODULE.$file), but do not include the
+ *   module name prefix in your function call.
  */
 function skinr_module_include($file) {
   foreach (skinr_get_module_apis() as $module => $info) {
@@ -408,10 +483,10 @@ function skinr_get_module_apis() {
 // Skinr data handling functions.
 
 /**
- * Validate a skinr object.
+ * Validate a skinr settings object.
  *
  * @param $skinr
- *   A skinr object.
+ *   The skinr settings object to validate.
  *
  * @return
  *   TRUE on success, FALSE on failure.
@@ -434,7 +509,7 @@ function skinr_validate(&$skinr) {
 }
 
 /**
- * Save a skinr object.
+ * Save a skinr settings object.
  *
  * @param $skinr
  *   A skinr object.
@@ -472,12 +547,21 @@ function skinr_set($skinr) {
 }
 
 /**
- * Retrieves the desired skinr object.
+ * Retrieves the desired skinr settings object.
+ *
+ * @param $theme
+ *   The theme these settings apply to. If no theme name is provided, the
+ *   current theme will be used.
+ * @param $module
+ *   The module these settings apply to.
+ * @param $sid
+ *   The element ID these settings apply to.
  *
  * @return
- *   A skinr object if both $module and $sid are specified. An array of skinr
- *   objects if only $module is specified. An array of all skinr objects for a
- *   theme if neither $module nor $sid is specified. FALSE on failure.
+ *   A skinr settings object if both $module and $sid are specified. An array
+ *   of skinr settings objects if only $module is specified. An array of all
+ *   skinr settings objects for a theme if neither $module nor $sid is
+ *   specified. FALSE on failure.
  */
 function skinr_get($theme = NULL, $module = NULL, $sid = NULL) {
   $cache = &drupal_static(__FUNCTION__, array());
@@ -543,6 +627,12 @@ function skinr_get($theme = NULL, $module = NULL, $sid = NULL) {
 
 /**
  * Helper function to remove empty skins from an array.
+ *
+ * @param $array
+ *   A single or multi-dimensional array to strip of empty values.
+ *
+ * @return
+ *   An array stripped of empty values.
  */
 function _skinr_array_strip_empty($array) {
   $new_array = array();
@@ -559,12 +649,16 @@ function _skinr_array_strip_empty($array) {
 
 /**
  * Helper function to retrieve the current theme.
+ *
  * The global variable $theme_key doesn't work for our purposes when an admin
  * theme is enabled.
  *
- * @param $exculde_admin_theme
- *   Optional. Set to TRUE to exclude the admin theme from posible themes to
+ * @param $exclude_admin_theme
+ *   Optional. Set to TRUE to exclude the admin theme from possible themes to
  *   return.
+ *
+ * @return
+ *   The current theme name.
  */
 function skinr_current_theme($exclude_admin_theme = FALSE) {
   global $user, $custom_theme;
@@ -583,7 +677,7 @@ function skinr_current_theme($exclude_admin_theme = FALSE) {
 }
 
 /**
- * Prepare defaults for skins.
+ * Prepare defaults for skinsets.
  *
  * @return
  *   An array of default skinset settings.
@@ -598,10 +692,10 @@ function skinr_skins_default() {
 }
 
 /**
- * Prepare defaults for skinr options.
+ * Prepare defaults for groups.
  *
  * @return
- *   An array of default skinset options settings.
+ *   An array of default group settings.
  */
 function skinr_group_default() {
   return array(
@@ -617,7 +711,7 @@ function skinr_group_default() {
  * Prepare defaults for skins.
  *
  * @return
- *   An array of default skins settings.
+ *   An array of default skin settings.
  */
 function skinr_skin_default() {
   return array(
@@ -636,8 +730,11 @@ function skinr_skin_default() {
 /**
  * Helper function to process a skin or theme .info file.
  *
+ * @param $info
+ *   An array of data as gotten from a skin or theme .info file.
+ *
  * @return
- *    A skinset.
+ *    A processed set of skins.
  */
 function _skinr_skinset($info) {
   $skinset = array(
@@ -707,7 +804,8 @@ function _skinr_skinset($info) {
 }
 
 /**
- * Helper function to prepend a path to an array of stylesheets or scripts in a .info file.
+ * Helper function to prepend a path to an array of stylesheets or scripts in a
+ * .info file.
  *
  * @param $files
  *   A an array of filenames that need the path prepended.
@@ -745,7 +843,7 @@ function _skinr_add_path_to_files($files, $path, $type) {
  * Helper function to process an array of skins.
  *
  * @return
- *    An array of skinsets.
+ *    An array of skins.
  */
 function skinr_skinsets() {
   $skinsets = &drupal_static(__FUNCTION__, array());
@@ -791,10 +889,10 @@ function skinr_skinsets() {
 }
 
 /**
- * Return an array of statuses of each skin in a skinset for each theme.
+ * Return an array of statuses for each skin in a skinset for each theme.
  *
  * @param $skinset_name
- *   The name of the skinset of which to load the statuses.
+ *   The name of the skinset for which to load the statuses.
  *
  * @return
  *   Array of statuses for individual skins in a skinset.
@@ -815,7 +913,7 @@ function skinr_skinset_statuses($skinset_name) {
 }
 
 /**
- * Themes are allowed to set Skinr skins in their .info files.
+ * Processes and compiles a list of all skins.
  *
  * @return
  *    An array of skinsets keyed by themename.
@@ -871,7 +969,10 @@ function skinr_skin_data() {
 }
 
 /**
- * Fetch Skinr configuration data from modules.
+ * Fetch Skinr configuration data from Skinr functionality plugins.
+ *
+ * @return
+ *   An array of all configuration data.
  */
 function skinr_fetch_config() {
   $cache = &drupal_static(__FUNCTION__);
@@ -888,7 +989,16 @@ function skinr_fetch_config() {
 }
 
 /**
- * Fetch default configuration data for modules.
+ * Fetch default configuration data for Skinr functionality plugins.
+ *
+ * @param @setting
+ *   The value 'form'. There are no other valid options.
+ *
+ * @return
+ *   Returns an array of default values.
+ *
+ * @todo Remove the $setting parameter. There is only ever one option used:
+ *  'form'.
  */
 function _skinr_fetch_config_defaults($setting) {
   switch ($setting) {
@@ -912,6 +1022,66 @@ function _skinr_fetch_config_defaults($setting) {
 
 /**
  * Execute a module's data handler.
+ *
+ * @param $type
+ *   The type of handler to execute. Possible values:
+ *   - 'access_handler':
+ *   - 'contextual_links':
+ *   - 'data_handler':
+ *   - 'form_index_handler':
+ *   - 'preprocess_index_handler':
+ *   - 'preprocess_hook_callback':
+ *   - 'submit_handler':
+ * @param $op
+ *   For 'access_handler' the possible values are 'access skinr'
+ *     and 'access skinr classes'.
+ *   For 'contextual_links' an empty string is passed.
+ *   For 'data_handler' the possible values are 'form' and 'submit'.
+ *   For 'form_index_handler' the possible values are 'form' and 'submit'.
+ *   For 'preprocess_index_handler' the possible values are 'preprocess'.
+ *   For 'preprocess_hook_callback' an empty string is passed.
+ *   For 'submit_handler' an empty string is passed.
+ * @param $handler
+ *   The function name for this handler as gotten from skinr_fetch_config().
+ * @param $a3
+ *   For 'access_handler', passes in the $form parameter as provided to a form
+ *     function.
+ *   For 'contextual_links', passes in the $variables parameter from
+ *     skinr_preprocess().
+ *   For 'data_handler', passes in the $form parameter from hook_form_submit().
+ *   For 'form_index_handler':
+ *   - For $op 'form', passes in the $form parameter from hook_form_alter().
+ *   - For $op 'submit', passes in the $form parameter from hook_form_submit().
+ *   For 'preprocess_index_handler', passes in the $variables parameter from
+ *     module_preprocess().
+ *   For 'preprocess_hook_callback', passes in the $form parameter from
+ *     hook_form_alter().
+ *   For 'submit_handler', passes in the $form parameter from hook_form_alter().
+ *
+ * @param $a4
+ *   For 'access_handler', passes in the $form_state array as provided to a
+ *     form function.
+ *   For 'data_handler', passes in the $form_state parameter form
+ *     hook_form_submit().
+ *   For 'form_index_handler':
+ *   - For $op 'form', passes in the $form_state parameter from
+ *     hook_form_alter().
+ *   - For $op 'submit', passes in the $form_state parameter from
+ *     hook_form_submit().
+ *   For 'preprocess_hook_callback', passes in the $form_state parameter from
+ *     hook_form_alter().
+ *   For 'submit_handler', passes in the $form_state parameter from
+ *     hook_form_alter().
+ * @param $a5
+ *   For 'data_handler', passes in the module that is currently being processed.
+ *   For 'submit_handler', passes in the module that is currently being
+ *     processed.
+ * @param $a6
+ *   For 'data_handler', passes in the settings from hook_skinr_config() for
+ *     the form that's currently being processed.
+ *   For 'submit_handler', passes in the settings from hook_skinr_config() for
+ *     the form that's currently being processed.
+ * @param $a7
  */
 function skinr_handler($type, $op, $handler, &$a3, $a4 = NULL, $a5 = NULL, $a6 = NULL, $a7 = NULL) {
   if (is_callable($handler)) {

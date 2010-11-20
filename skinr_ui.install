@@ -7,7 +7,7 @@
  */
 
 /**
- * Implementation of hook_install().
+ * Implements hook_install().
  */
 function skinr_ui_install() {
   // Skinr should go before contextual module.
@@ -18,7 +18,7 @@ function skinr_ui_install() {
 }
 
 /**
- * Implementation of hook_uninstall().
+ * Implements hook_uninstall().
  */
 function skinr_ui_uninstall() {
   variable_del('skinr_overlay_width');
@@ -27,6 +27,10 @@ function skinr_ui_uninstall() {
 
 /**
  * Delete a few unused variables.
+ *
+ * @todo This is a badly converted function it should be
+ *       skinr_ui_update_6001(). Remove this function and implement
+ *       skinr_update_last_removed() instead.
  */
 function skinr_ui_update_7000() {
   variable_del('skinr_overlay_autofit');

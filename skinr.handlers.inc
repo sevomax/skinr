@@ -2,7 +2,7 @@
 // $Id$
 /**
  * @file
- * Defines the various handler objects to support Skinr.
+ * Defines the various default handler functions to support Skinr.
  */
 
 /*
@@ -10,14 +10,15 @@
  *
  * @param $op
  *   What kind of action is being performed. Possible values:
- *   - "access skinr": access to edit skinr's selector
- *   - "access skinr classes": access to edit skinr's additional classes
+ *   - access skinr: Access to edit Skinr's settings.
+ *   - access skinr classes: Access to edit Skinr's additional classes.
  * @param &$form
  *   Passes in the $form parameter from hook_form_alter().
  * @param $form_state
  *   Passes in the $form_state parameter from hook_form_alter().
+ *
  * @return
- *   TRUE if we get access, FALSE if we don't.
+ *   TRUE if we get access, FALSE otherwise.
  */
 function skinr_access_handler($op, &$form, $form_state) {
   switch ($op) {
@@ -33,16 +34,18 @@ function skinr_access_handler($op, &$form, $form_state) {
  *
  * @param $op
  *   What kind of action is being performed. Possible values:
- *   - "form": the form elements for Skinr are being inserted in a form
- *   - "submit": the form has been submitted.
+ *   - form: The form elements for Skinr are being inserted in a form.
+ *   - submit: The form has been submitted.
  * @param &$form
- *   - For "form", passes in the $form parameter from hook_form_alter().
- *   - For "submit", passes in the $form parameter from hook_form_submit().
+ *   - For 'form', passes in the $form parameter from hook_form_alter().
+ *   - For 'submit', passes in the $form parameter from hook_form_submit().
  * @param $form_state
- *   - For "form", passes in the $form_state parameter from hook_form_alter().
- *   - For "submit", passes in the $form_state parameter from hook_form_submit().
+ *   - For 'form', passes in the $form_state parameter from hook_form_alter().
+ *   - For 'submit', passes in the $form_state parameter from
+ *     hook_form_submit().
+ *
  * @return
- *   The index where we can find our values in Skinrs data structure.
+ *   The index where we can find our values in Skinr's data structure.
  */
 function skinr_index_handler($op, &$form, $form_state) {
   switch ($op) {
@@ -62,20 +65,23 @@ function skinr_index_handler($op, &$form, $form_state) {
   }
 }
 
-/*
+/**
  * Skinr data handler.
  *
  * @param &$form
  *   Passes in the $form parameter from hook_form_submit().
  * @param $form_state
  *   Passes in the $form_state parameter from hook_form_submit().
+ * @param $theme
+ *   The theme that is currently being processed.
  * @param $module
  *   The module that is currently being processed.
  * @param $form_settings
  *   The settings from hook_skinr_config() for the form that's currently being
  *   processed.
+ *
  * @return
- *   TRUE if we get access, FALSE if we don't.
+ *   A skinr settings object.
  */
 function skinr_data_handler(&$form, $form_state, $theme, $module, $form_settings) {
   // Ensure we have the required index_handler
@@ -99,8 +105,6 @@ function skinr_data_handler(&$form, $form_state, $theme, $module, $form_settings
  * @param $form_settings
  *   The settings from hook_skinr_config() for the form that's currently being
  *   processed.
- * @return
- *   TRUE if we get access, FALSE if we don't.
  */
 function skinr_submit_handler(&$form, $form_state, $module, $form_settings) {
   if (isset($form_state['values']['skinr_settings'][$module . '_group'])) {
@@ -139,7 +143,7 @@ function skinr_submit_handler(&$form, $form_state, $module, $form_settings) {
 // Declare API compatibility on behalf of core modules:
 
 /**
- * Implementation of hook_skinr_api().
+ * Implements hook_skinr_api().
  *
  * This one is used as the base to reduce errors when updating.
  */
