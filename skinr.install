@@ -58,12 +58,12 @@ function skinr_schema() {
   );
 
   $schema['skinr_rules'] = array(
-    'description' => 'Stores skinr page rule data.',
+    'description' => 'Stores skinr rule data.',
     'fields' => array(
       'rid' => array(
         'type' => 'serial',
         'not null' => TRUE,
-        'description' => 'Primary Key: Unique skinr page rule ID.',
+        'description' => 'Primary Key: Unique skinr rule ID.',
       ),
       'title' => array(
         'description' => 'The administrative title for this rule.',
@@ -251,7 +251,7 @@ function skinr_update_7001() {
         'sid' => array('sid'),
       ),
     );
-    db_create_table($ret, 'skinr', $schema['skinr']);
+    db_create_table('skinr', $schema['skinr']);
   }
 
   // Exclude variables that aren't theme settings (from skinr_ui).

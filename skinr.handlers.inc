@@ -90,7 +90,7 @@ function skinr_data_handler(&$form, $form_state, $theme, $module, $form_settings
   }
   $index = skinr_handler('form_index_handler', 'form', $form_settings['index_handler'], $form, $form_state);
 
-  return skinr_get($theme, $module, $index);
+  return skinr_skin_load($theme, $module, $index);
 }
 
 /**
@@ -110,31 +110,31 @@ function skinr_submit_handler(&$form, $form_state, $module, $form_settings) {
   if (isset($form_state['values']['skinr_settings'][$module . '_group'])) {
     foreach ($form_state['values']['skinr_settings'][$module . '_group'] as $theme_name => $theme) {
       if ((!empty($theme['widgets']) && is_array($theme['widgets'])) || isset($theme['_additional'])) {
-        $skinr = new stdClass();
-        $skinr->theme = $theme_name;
-        $skinr->module = $module;
-        $skinr->sid = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state);
-        $skinr->skins = array();
+        $skin = new stdClass();
+        $skin->theme = $theme_name;
+        $skin->module = $module;
+        $skin->sid = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state);
+        $skin->skins = array();
 
-       if (!empty($theme['widgets']) && is_array($theme['widgets'])) {
-          foreach ($theme['widgets'] as $skin_id => $skin_value) {
-            $skinr->skins[$skin_id] = $skin_value;
+        if (!empty($theme['widgets']) && is_array($theme['widgets'])) {
+          foreach ($theme['widgets'] as $skin_name => $skin_value) {
+            $skin->skins['_options'][$skin_name] = $skin_value;
           }
         }
 
         if (isset($theme['_additional'])) {
           $theme['_additional'] = trim($theme['_additional']);
           if (!empty($theme['_additional'])) {
-            $skinr->skins['_additional'] = $theme['_additional'];
+            $skin->skins['_additional'] = $theme['_additional'];
           }
         }
 
-        if (empty($skinr->sid)) {
+        if (empty($skin->sid)) {
           // We didn't receive a valid sid, so raise an error
           drupal_set_message(t("Skinr settings weren't saved due to an error."), 'error');
         }
 
-        skinr_set($skinr);
+        skinr_skin_save($skin);
       }
     }
   }

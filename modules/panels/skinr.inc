@@ -27,7 +27,7 @@ function theme_panels_skinr_style_render_region($variables) {
 
   // Add skinr styles.
   $style = array();
-  if ($skinr = skinr_get(NULL, $hook, $sid)) {
+  if ($skinr = skinr_skin_load(NULL, $hook, $sid)) {
     $style = implode(' ', skinr_flatten_skins_array($skinr->skins));
   }
 
@@ -59,7 +59,7 @@ function theme_panels_skinr_style_render_pane($variables) {
 
   // Add skinr styles
   $style = array();
-  if ($skinr = skinr_get(NULL, $hook, $sid)) {
+  if ($skinr = skinr_skin_load(NULL, $hook, $sid)) {
     $style = skinr_flatten_skins_array($skinr->skins);
   }
 

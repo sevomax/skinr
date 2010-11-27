@@ -44,7 +44,7 @@ function skinr_ui_filters() {
   );
 
   // Type filter.
-  $config = skinr_fetch_config();
+  $config = skinr_get_config_info();
 
   $options = array('[any]' => t('any'));
   foreach ($config as $type => $data) {
@@ -254,13 +254,13 @@ function skinr_ui_admin_skins() {
       continue;
     }
     if (empty($type)) {
-      $skinrs = skinr_get($theme->name);
+      $skins = skinr_skin_load($theme->name);
     }
     else {
-      $skinrs = array($type => skinr_get($theme->name, $type));
+      $skins = array($type => skinr_skin_load($theme->name, $type));
     }
 
-    foreach ($skinrs as $module => $elements) {
+    foreach ($skins as $module => $elements) {
       foreach ($elements as $sid => $skin) {
         $operations = array(
           'edit' => array(
@@ -389,13 +389,13 @@ function skinr_ui_multiple_delete_confirm_submit($form, &$form_state) {
     foreach ($form_state['values']['skins'] as $skin => $value) {
       $parts = explode('__', $skin, 3);
 
-      $skinr = new StdClass();
-      $skinr->theme = $parts[0];
-      $skinr->module = $parts[1];
-      $skinr->sid = $parts[2];
-      $skinr->skins = array();
+      $skin = new StdClass();
+      $skin->theme = $parts[0];
+      $skin->module = $parts[1];
+      $skin->sid = $parts[2];
+      $skin->skins = array();
 
-      skinr_set($skinr);
+      skinr_skin_save($skin);
     }
 
     $count = count($form_state['values']['skins']);
@@ -452,57 +452,60 @@ function skinr_ui_settings_validate(&$form, &$form_state) {
 }
 
 /**
- * Form builder for the non-theme skinsets listing form.
+ * Form builder for the skin info listing form.
  *
  * @ingroup forms
- * @see skinr_ui_admin_skinsets_submit()
+ * @see skinr_ui_admin_skin_infos_submit()
  */
-function skinr_ui_admin_skinsets($form, $form_state) {
+function skinr_ui_admin_skin_infos($form, $form_state) {
   $form = array();
 
-  // @todo Add API function to retrieve D7 skins.
-  $skinsets = array();
-  if (empty($skinsets)) {
-    $form['skinsets_empty'] = array(
+  $skins = skinr_get_skin_info();
+  if (empty($skins)) {
+    $form['skins_empty'] = array(
       '#markup' => t('You do not currently have any skin sets to manage.'),
     );
     return $form;
   }
 
-  uasort($skinsets, 'skinr_ui_sort_by_info_name');
-  $form['skinsets'] = array('#tree' => TRUE);
+  uasort($skins, 'skinr_ui_sort_by_title');
+  $form['skins'] = array('#tree' => TRUE);
 
-  // Iterate through each of the skinsets.
-  foreach ($skinsets as $name => $skinset) {
+  // Iterate through each of the skins.
+  foreach ($skins as $name => $skin) {
     $extra = array();
-    $extra['enabled'] = (bool) $skinset->status;
+    // @todo Status for skins is now per theme; either figure out a better way to display, or delete the status row.
+    $extra['enabled'] = TRUE;
 
-    // Generate link for skinset's configuration page
+    // Generate link for skin's configuration page
     $configure_link = menu_get_item('admin/appearance/skinr/skins/settings/'. $name);
     if ($configure_link['access']) {
       $extra['links']['configure'] = array(
         '#type' => 'link',
         '#title' => t('Configure'),
         '#href' => $configure_link['href'],
-        '#options' => array('attributes' => array('class' => array('skinset-link', 'skinset-link-configure'), 'title' => $configure_link['description'])),
+        '#options' => array('attributes' => array('class' => array('skin-link', 'skin-link-configure'), 'title' => $configure_link['description'])),
       );
     }
 
-    // Create a row entry for this skinset.
-    $form['skinsets'][$skinset->info['package']][$skinset->name] = _skinr_ui_admin_skinsets_build_row($skinset->info, $extra);
+    // Create a row entry for this skin.
+    $form['skins'][$skin['group']][$name] = _skinr_ui_admin_skin_infos_build_row($skin, $extra);
   }
 
   // Add basic information to the fieldsets.
-  foreach (element_children($form['skinsets']) as $package) {
-    $form['skinsets'][$package] += array(
+  foreach (element_children($form['skins']) as $package) {
+    $form['skins'][$package] += array(
       '#type' => 'fieldset',
       '#title' => t($package),
       '#collapsible' => TRUE,
-      '#theme' => 'skinr_ui_admin_skinsets_fieldset',
+      '#theme' => 'skinr_ui_admin_skin_infos_fieldset',
       '#header' => array(
-        t('Screenshot'),
         t('Name'),
-        t('Version'),
+        t('Source type'),
+        t('Source name'),
+        t('Source version'),
+        t('Source plug-in'),
+        t('Theme hooks'),
         array('data' => t('Enabled'), 'class' => array('checkbox')),
         array('data' => t('Operations'), 'colspan' => 3),
       ),
@@ -520,9 +523,9 @@ function skinr_ui_admin_skinsets($form, $form_state) {
 }
 
 /**
- * Build a table row for the skinsets page.
+ * Build a table row for the skin info listing page.
  */
-function _skinr_ui_admin_skinsets_build_row($info, $extra) {
+function _skinr_ui_admin_skin_infos_build_row($skin, $extra) {
   // Add in the defaults.
   $extra += array(
     'enabled' => FALSE,
@@ -532,19 +535,37 @@ function _skinr_ui_admin_skinsets_build_row($info, $extra) {
   $form = array(
     '#tree' => TRUE,
   );
-  // Set the basic properties.
-  $form['screenshot'] = array(
-    '#markup' => file_exists($info['screenshot']) ? theme('image', array('path' => $info['screenshot'], 'alt' => t('Screenshot for %theme theme', array('%theme' => $info['name'])), 'attributes' => array('class' => 'screenshot'), 'getsize' => FALSE)) : t('no screenshot'),
-  );
 
   $form['name'] = array(
-    '#markup' => $info['name'],
+    '#markup' => $skin['title'],
   );
   $form['description'] = array(
-    '#markup' => t($info['description']),
+    '#markup' => t($skin['description']),
   );
-  $form['version'] = array(
+
+
+  // Grab source info.
+  $info = system_get_info($skin['source']['type'], $skin['source']['name']);
+
+  $form['source type'] = array(
+    '#markup' => $skin['source']['type'],
+  );
+  $form['source name'] = array(
+    '#markup' => $info['name'],
+  );
+  $form['source version'] = array(
     '#markup' => $info['version'],
+  );
+  $form['source plugin'] = array(
+    '#markup' => $skin['source']['plugin'],
+  );
+
+  $theme_hooks = array();
+  foreach ($skin['theme hooks'] as $theme_hook) {
+    $theme_hooks[] = $theme_hook == '*' ? t('all hooks') : $theme_hook;
+  }
+  $form['theme hooks'] = array(
+    '#markup' => implode('<br />', $theme_hooks),
   );
 
   // Check the compatibilities.
@@ -552,25 +573,11 @@ function _skinr_ui_admin_skinsets_build_row($info, $extra) {
   $status_short = '';
   $status_long = '';
 
-  // Check the core compatibility.
-  if (!isset($info['core']) || $info['core'] != DRUPAL_CORE_COMPATIBILITY) {
-    $compatible = FALSE;
-    $status_short .= t('Incompatible with this version of Drupal core. ');
-    $status_long .= t('This version is not compatible with Drupal !core_version and should be replaced.', array('!core_version' => DRUPAL_CORE_COMPATIBILITY));
-  }
+  // @todo Check for Skinr API compatibility.
+  $compatible = TRUE;
 
-  // Ensure this skinset is compatible with the currently installed version of PHP.
-  if (version_compare(phpversion(), $info['php']) < 0) {
-    $compatible = FALSE;
-    $status_short .= t('Incompatible with this version of PHP');
-    if (substr_count($info['php'], '.') < 2) {
-      $php_required .= '.*';
-    }
-    $status_long .= t('This module requires PHP version @php_required and is incompatible with PHP version !php_version.', array('@php_required' => $php_required, '!php_version' => phpversion()));
-  }
-
-  // If this skinset is compatible, present a checkbox indicating
-  // this skinset may be installed. Otherwise, show a big red X.
+  // If this skin is compatible, present a checkbox indicating
+  // this skin may be installed. Otherwise, show a big red X.
   if ($compatible) {
     $form['enable'] = array(
       '#type' => 'checkbox',
@@ -585,7 +592,7 @@ function _skinr_ui_admin_skinsets_build_row($info, $extra) {
     $form['enable'] = array(
       '#markup' =>  theme('image', array('path' => 'misc/watchdog-error.png', 'alt' => t('incompatible'), 'title' => $status_short)),
     );
-    $form['name']['#markup'] .= theme('theme_skinr_ui_admin_skinsets_incompatible', array('message' => $status_long));
+    $form['name']['#markup'] .= theme('theme_skinr_ui_admin_skin_infos_incompatible', array('message' => $status_long));
   }
 
   // Build operation links.
@@ -595,34 +602,37 @@ function _skinr_ui_admin_skinsets_build_row($info, $extra) {
 }
 
 /**
- * Helper function to sort skinsets by the name in their .info file.
+ * Sort skin infos by title.
  *
  * @param $a
- *   The first skinset to compare.
+ *   The first skin info to compare.
  * @param $b
- *   The second skinset to compare.
+ *   The second skin info to compare.
  *
  * @return
  *   Returns < 0 if $a is less than $b; > 0 if $a is greater than $b, and 0
  *   if they are equal.
  */
-function skinr_ui_sort_by_info_name($a, $b) {
-  return strcasecmp($a->info['name'], $b->info['name']);
+function skinr_ui_sort_by_title($a, $b) {
+  return strcasecmp($a['title'], $b['title']);
 }
 
 /**
- * Form submission handler for skinr_ui_admin_skinsets().
+ * Form submission handler for skinr_ui_admin_skin_infos().
+ *
+ * @todo Update status storage code.
  */
-function skinr_ui_admin_skinsets_submit($form, &$form_state) {
+function skinr_ui_admin_skin_infos_submit($form, &$form_state) {
   // Store list of previously enabled themes and disable all themes.
-  $old_skinset_list = $new_skinset_list = array();
-  foreach (skinr_skinsets() as $skinset) {
-    if ($skinset->status) {
-      $old_skinset_list[] = $skinset->name;
+  $old_skin_infos = $new_skin_infos = array();
+  foreach (skinr_get_skin_info() as $skin_info) {
+    if ($skin_info->status) {
+      $old_skin_infos[] = $skin_info->name;
     }
   }
   db_query("UPDATE {skinr_skinsets} SET status = 0");
 
+  // Set status for all
   foreach ($form_state['values']['skinsets'] as $category) {
     foreach ($category as $name => $choice) {
       if ($choice['enable']) {
@@ -636,9 +646,7 @@ function skinr_ui_admin_skinsets_submit($form, &$form_state) {
   }
 
   // Refresh skinsets from DB.
-  drupal_static_reset('skinr_skinsets');
-
-  // @todo Disable any skins from skinsets that are now disabled.
+  drupal_static_reset('skinr_get_skin_info');
 
   drupal_set_message(t('The configuration options have been saved.'));
 
@@ -646,7 +654,7 @@ function skinr_ui_admin_skinsets_submit($form, &$form_state) {
 }
 
 /**
- * Returns HTML for the skinsets form.
+ * Returns HTML for the skin info listing form.
  *
  * @param $variables
  *   An associative array containing:
@@ -654,42 +662,41 @@ function skinr_ui_admin_skinsets_submit($form, &$form_state) {
  *
  * @ingroup themeable
  */
-function theme_skinr_ui_admin_skinsets_fieldset($variables) {
+function theme_skinr_ui_admin_skin_infos_fieldset($variables) {
   $form = $variables['form'];
 
   // Individual table headers.
   $rows = array();
   // Iterate through all the modules, which are
   // children of this fieldset.
-  foreach (element_children($form) as $key) {
+  foreach (element_children($form) as $skin_name) {
     // Stick it into $skinset for easier accessing.
-    $skinset = $form[$key];
+    $skin_info = $form[$skin_name];
 
     $row = array();
 
-    // Screenshot.
-    $row[] = array('data' => $skinset['screenshot'], 'class' => array('screenshot'));
-
     // Name.
-    $row[] = theme('skinr_ui_admin_skinsets_info', array(
-      'name' => drupal_render($skinset['name']),
-      'description' => drupal_render($skinset['description'])
+    $row[] = theme('skinr_ui_admin_skin_infos_summary', array(
+      'name' => drupal_render($skin_info['name']),
+      'description' => drupal_render($skin_info['description']),
     ));
 
-    // Version.
-    $row[] = drupal_render($skinset['version']);
+    // Source.
+    $row[] = drupal_render($skin_info['source type']);
+    $row[] = drupal_render($skin_info['source name']);
+    $row[] = drupal_render($skin_info['source version']);
+    $row[] = drupal_render($skin_info['source plugin']);
 
-    // Add the description, along with any modules it requires.
-    $description = drupal_render($skinset['description']);
-    //$row[] = array('data' => $description, 'class' => array('description'));
+    // Theme hooks.
+    $row[] = drupal_render($skin_info['theme hooks']);
 
     // Enabled.
-    unset($skinset['enable']['#title']);
-    $row[] = array('class' => array('checkbox'), 'data' => drupal_render($skinset['enable']));
+    unset($skin_info['enable']['#title']);
+    $row[] = array('class' => array('checkbox'), 'data' => drupal_render($skin_info['enable']));
 
     // Display links (such as help or permissions) in their own columns.
     foreach (array('help', 'permissions', 'configure') as $key) {
-      $row[] = array('data' => drupal_render($skinset['links'][$key]), 'class' => array($key));
+      $row[] = array('data' => drupal_render($skin_info['links'][$key]), 'class' => array($key));
     }
     $rows[] = $row;
   }
@@ -706,8 +713,8 @@ function theme_skinr_ui_admin_skinsets_fieldset($variables) {
  *
  * @ingroup themeable
  */
-function theme_skinr_ui_admin_skinsets_info($variables) {
-  return '<div class="skinset-info"><h2>'. $variables['name'] .'</h2><div class="description">'. $variables['description'] .'</div></div>';
+function theme_skinr_ui_admin_skin_infos_summary($variables) {
+  return '<div class="skin-infos-summary"><h2>'. $variables['name'] .'</h2><div class="description">'. $variables['description'] .'</div></div>';
 }
 
 /**
@@ -719,7 +726,7 @@ function theme_skinr_ui_admin_skinsets_info($variables) {
  *
  * @ingroup themeable
  */
-function theme_skinr_ui_admin_skinsets_incompatible($variables) {
+function theme_skinr_ui_admin_skin_infos_incompatible($variables) {
   return '<div class="incompatible">' . $variables['message'] . '</div>';
 }
 
@@ -728,14 +735,14 @@ function theme_skinr_ui_admin_skinsets_incompatible($variables) {
  * to enable or disable them individually for each theme.
  *
  * @ingroup forms
- * @see skinr_ui_admin_skinsets_settings_submit()
+ * @see skinr_ui_admin_skin_infos_settings_submit()
  */
-function skinr_ui_admin_skinsets_settings($form, $form_state, $skinset_name) {
+function skinr_ui_admin_skin_infos_settings($form, $form_state, $skinset_name) {
   $form = array();
 
-  $skinsets = skinr_skinsets();
-  if (!empty($skinsets[$skinset_name])) {
-    $skinset = $skinsets[$skinset_name];
+  $skin_infos = skinr_get_skin_info();
+  if (!empty($skin_infos[$skinset_name])) {
+    $skin_info = $skin_infos[$skinset_name];
 
     $themes = list_themes();
     ksort($themes);
@@ -743,14 +750,14 @@ function skinr_ui_admin_skinsets_settings($form, $form_state, $skinset_name) {
     $form['skins'] = array('#tree' => TRUE);
 
     // Iterate through each of the skinsets.
-    foreach ($skinset->skins as $name => $skin) {
+    foreach ($skin_info->skins as $name => $skin) {
       foreach ($themes as $theme) {
         if (!$theme->status) {
           continue;
         }
 
         // Create a row entry for this skinset.
-        $form['skins'][$theme->name][$name] = _skinr_ui_admin_skinsets_settings_build_row($skin, $theme->name);
+        $form['skins'][$theme->name][$name] = _skinr_ui_admin_skin_infos_settings_build_row($skin, $theme->name);
       }
     }
 
@@ -762,7 +769,7 @@ function skinr_ui_admin_skinsets_settings($form, $form_state, $skinset_name) {
         '#title' => t($themes[$theme_name]->info['name']),
         '#collapsible' => TRUE,
         '#collapsed' => ($theme_name != $current_theme),
-        '#theme' => 'skinr_ui_admin_skinsets_settings_fieldset',
+        '#theme' => 'skinr_ui_admin_skin_infos_settings_fieldset',
         '#header' => array(
           t('Enabled'),
           t('Name'),
@@ -791,7 +798,7 @@ function skinr_ui_admin_skinsets_settings($form, $form_state, $skinset_name) {
 /**
  * Build a table row for the skinset settings page.
  */
-function _skinr_ui_admin_skinsets_settings_build_row($skin, $theme_name) {
+function _skinr_ui_admin_skin_infos_settings_build_row($skin, $theme_name) {
   $form['enable'] = array(
     '#type' => 'checkbox',
     '#title' => t('Enable'),
@@ -799,11 +806,11 @@ function _skinr_ui_admin_skinsets_settings_build_row($skin, $theme_name) {
   );
 
   // The hooks this skin is working with.
-  $features = array();
-  foreach ($skin['features'] as $feature) {
-    $features[] = $feature == '*' ? t('all hooks') : $feature;
+  $theme_hooks = array();
+  foreach ($skin['theme hooks'] as $theme_hook) {
+    $theme_hooks[] = $theme_hook == '*' ? t('all hooks') : $theme_hook;
   }
-  $features = t('Used by: !features', array('!features' => implode(', ', $features)));
+  $features = t('Used by: !theme_hooks', array('!theme_hooks' => implode(', ', $theme_hooks)));
 
   $form['name'] = array(
     '#markup' => t($skin['title']),
@@ -827,7 +834,7 @@ function _skinr_ui_admin_skinsets_settings_build_row($skin, $theme_name) {
  *
  * @ingroup themeable
  */
-function theme_skinr_ui_admin_skinsets_settings_fieldset($variables) {
+function theme_skinr_ui_admin_skin_infos_settings_fieldset($variables) {
   $form = $variables['form'];
 
   // Individual table headers.
@@ -845,10 +852,10 @@ function theme_skinr_ui_admin_skinsets_settings_fieldset($variables) {
     $row[] = array('class' => array('checkbox'), 'data' => drupal_render($skin['enable']));
 
     // Name.
-    $row[] = theme('skinr_ui_admin_skinsets_settings_info', array(
+    $row[] = theme('skinr_ui_admin_skin_infos_settings_summary', array(
       'name' => drupal_render($skin['name']),
       'description' => drupal_render($skin['description']),
-      'features' => drupal_render($skin['features'])
+      'theme hooks' => drupal_render($skin['theme hooks'])
     ));
 
     $rows[] = $row;
@@ -868,14 +875,14 @@ function theme_skinr_ui_admin_skinsets_settings_fieldset($variables) {
  *
  * @ingroup themeable
  */
-function theme_skinr_ui_admin_skinsets_settings_info($variables) {
-  return '<div class="skin-info"><h2>'. $variables['name'] .'</h2><div class="description">'. $variables['description'] .'</div><div class="features">'. $variables['features'] .'</div></div>';
+function theme_skinr_ui_admin_skin_infos_settings_summary($variables) {
+  return '<div class="skin-info"><h2>'. $variables['name'] .'</h2><div class="description">'. $variables['description'] .'</div><div class="theme-hooks">'. $variables['theme hooks'] .'</div></div>';
 }
 
 /**
- * Process skinr_ui_admin_skinsets_settings() form submissions.
+ * Process skinr_ui_admin_skin_infos_settings() form submissions.
  */
-function skinr_ui_admin_skinsets_settings_submit($form, &$form_state) {
+function skinr_ui_admin_skin_infos_settings_submit($form, &$form_state) {
   if ($form_state['values']['op'] == t('Save configuration')) {
     $statuses = array();
     foreach ($form_state['values']['skins'] as $theme => $skins) {
@@ -936,16 +943,16 @@ function skinr_ui_export_form($form, &$form_state, $theme = NULL) {
   if ($theme) {
     // Export an individual theme.
     $theme = str_replace('-', '_', $theme);
-    $skinrs = skinr_get($theme);
+    $skins = skinr_skin_load($theme);
 
     // Convert classes to arrays.
-    foreach ($skinrs as $module => $data) {
-      foreach ($data as $sid => $skinr) {
-        $skinrs[$module][$sid] = (array) $skinrs[$module][$sid];
+    foreach ($skins as $module => $data) {
+      foreach ($data as $sid => $skin) {
+        $skins[$module][$sid] = (array) $skins[$module][$sid];
       }
     }
 
-    $code = '$skinrs = '. var_export($skinrs, TRUE) .';';
+    $code = '$skins = '. var_export($skins, TRUE) .';';
     $lines = substr_count($code, "\n") + 1;
 
     $form['theme'] = array(
@@ -1081,25 +1088,25 @@ function skinr_ui_import_form_validate(&$form, &$form_state) {
     return;
   }
 
-  $skinrs = '';
+  $skins = '';
   ob_start();
   eval($form_state['values']['skinr_settings']);
   ob_end_clean();
 
-  foreach ($skinrs as $module => $ignored) {
-    if (!is_array($skinrs[$module])) {
+  foreach ($skins as $module => $ignored) {
+    if (!is_array($skins[$module])) {
       // Error.
       form_error($form['skinr_settings'], t('These are not valid Skinr settings.'));
     }
-    foreach ($skinrs[$module] as $sid => $ignored) {
-      if (!is_array($skinrs[$module][$sid])) {
+    foreach ($skins[$module] as $sid => $ignored) {
+      if (!is_array($skins[$module][$sid])) {
         // Error.
         form_error($form['skinr_settings'], t('These are not valid Skinr settings.'));
       }
 
       // Cast skinr array to object so we can actually use it.
-      $skinrs[$module][$sid] = (object) $skinrs[$module][$sid];
-      if (!skinr_validate($skinrs[$module][$sid])) {
+      $skins[$module][$sid] = (object) $skins[$module][$sid];
+      if (!skinr_validate($skins[$module][$sid])) {
         // Error.
         form_error($form['skinr_settings'], t('These are not valid Skinr settings.'));
       }
@@ -1110,16 +1117,16 @@ function skinr_ui_import_form_validate(&$form, &$form_state) {
     form_error($form['theme'], t('The theme name must be alphanumeric and can contain underscores only.'));
   }
 
-  $form_state['skinrs'] = &$skinrs;
+  $form_state['skinrs'] = &$skins;
 }
 
 /**
  * Form submission handler for skinr_ui_import_form().
  */
 function skinr_ui_import_form_submit(&$form, &$form_state) {
-  foreach ($form_state['skinrs'] as $module => $skinrs) {
-    foreach ($skinrs as $sid => $skinr) {
-      if (!skinr_set($skinr)) {
+  foreach ($form_state['skinrs'] as $module => $skins) {
+    foreach ($skins as $sid => $skin) {
+      if (!skinr_skin_save($skin)) {
         drupal_set_message(t('Skinr settings for the theme %theme could not be saved!', array('%theme' => $form_state['values']['theme'])), 'error');
       }
     }
@@ -1171,14 +1178,14 @@ function skinr_ui_delete_confirm($form, &$form_state, $theme, $module, $sid) {
  */
 function skinr_ui_delete_confirm_submit($form, &$form_state) {
   if ($form_state['values']['confirm']) {
-    $skinr = new stdClass();
-    $skinr->theme = $form_state['values']['theme'];
-    $skinr->module = $form_state['values']['module'];
-    $skinr->sid = $form_state['values']['sid'];
-    $skinr->skins = array();
-    $skinr->settings = array();
+    $skin = new stdClass();
+    $skin->theme = $form_state['values']['theme'];
+    $skin->module = $form_state['values']['module'];
+    $skin->sid = $form_state['values']['sid'];
+    $skin->skins = array();
+    $skin->settings = array();
 
-    skinr_set($skinr);
+    skinr_skin_save($skin);
   }
 
   $form_state['redirect'] = 'admin/appearance/skinr';

@@ -13,9 +13,9 @@
  */
 
 /**
- * Implements hook_skinr_config().
+ * Implements hook_skinr_config_info().
  */
-function views_skinr_config() {
+function views_skinr_config_info() {
   $data['views']['form']['views_ui_edit_display_form'] = array(
     'index_handler' => 'views_skinr_form_index_handler',
     'access_handler' => 'views_skinr_access_handler_display',
@@ -179,7 +179,7 @@ function views_skinr_data_handler(&$form, $form_state, $theme, $module, $form_se
   }
 
   // No data exists in cache, so let's grab it from the regular source
-  return skinr_get($theme, $module, $index);
+  return skinr_skin_load($theme, $module, $index);
 }
 
 /**
@@ -202,8 +202,8 @@ function views_skinr_submit_handler_display(&$form, $form_state, $module, $form_
       $value = array();
 
       if (!empty($theme['widgets']) && is_array($theme['widgets'])) {
-        foreach ($theme['widgets'] as $skin_id => $skin_value) {
-          $value[$skin_id] = $skin_value;
+        foreach ($theme['widgets'] as $skin_name => $skin_value) {
+          $value['_options'][$skin_name] = $skin_value;
         }
       }
 
@@ -224,7 +224,7 @@ function views_skinr_submit_handler_display(&$form, $form_state, $module, $form_
       if (!$skinrs = ctools_object_cache_get('skinr', $form_state['view']->name, TRUE)) {
         $skinrs = array();
         // Fetch skinr data
-        $skinr = skinr_get($theme_name);
+        $skinr = skinr_skin_load($theme_name);
         if (isset($skinr[$module])) {
           foreach ($skinr[$module] as $skinr_key => $skinr_value) {
             if (drupal_substr($skinr_key, 0, drupal_strlen('view-'. $form_state['view']->name)) == 'view-'. $form_state['view']->name) {
@@ -254,7 +254,7 @@ function views_skinr_submit_handler_view(&$form, $form_state, $module, $form_set
             $skinr->sid = $sid;
             $skinr->skins = $skins;
 
-            skinr_set($skinr);
+            skinr_skin_save($skinr);
           }
         }
         views_object_cache_clear('skinr', $form_state['view']->name);

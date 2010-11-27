@@ -12,9 +12,9 @@
  */
 
 /**
- * Implements hook_skinr_config().
+ * Implements hook_skinr_config_info().
  */
-function comment_skinr_config() {
+function comment_skinr_config_info() {
   $data['comment']['form']['node_type_form'] = array(
     'index_handler' => 'comment_skinr_form_index_handler',
     'preprocess_hook_callback' => 'comment_skinr_preprocess_hook_callback',
@@ -69,7 +69,7 @@ function comment_skinr_form_index_handler($op, &$form, &$form_state) {
           $skinr->sid = $form_state['values']['old_type'];
           $skinr->skins = array();
 
-          skinr_set($skinr);
+          skinr_skin_save($skinr);
         }
       }
     return $form_state['values']['type'];

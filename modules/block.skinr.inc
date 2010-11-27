@@ -12,9 +12,9 @@
  */
 
 /**
- * Implements hook_skinr_config().
+ * Implements hook_skinr_config_info().
  */
-function block_skinr_config() {
+function block_skinr_config_info() {
   $data['block']['form']['block_admin_configure'] = array(
     'index_handler' => 'block_skinr_form_index_handler',
     'preprocess_hook_callback' => 'block_skinr_preprocess_hook_callback',

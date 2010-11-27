@@ -12,9 +12,9 @@
  */
 
 /**
- * Implementation of hook_skinr_config().
+ * Implementation of hook_skinr_config_info().
  */
-function skinr_skinr_config() {
+function skinr_skinr_config_info() {
   $data['rules']['form']['skinr_rule_edit'] = array(
     'index_handler' => 'rules_skinr_form_index_handler',
     'preprocess_hook_callback' => 'rules_skinr_preprocess_hook_callback',

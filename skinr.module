@@ -44,6 +44,8 @@ function skinr_init() {
 
 /**
  * Implements hook_preprocess().
+ *
+ * @todo Account for drupal's caching being enabled and make it work.
  */
 function skinr_preprocess(&$variables, $hook) {
   // Fix for update script.
@@ -51,7 +53,7 @@ function skinr_preprocess(&$variables, $hook) {
     return;
   }
 
-  $skinr_config = skinr_fetch_config();
+  $config = skinr_get_config_info();
   $current_theme = skinr_current_theme();
   $theme_registry = theme_get_registry();
 
@@ -60,20 +62,21 @@ function skinr_preprocess(&$variables, $hook) {
     $original_hook = $theme_registry[$hook]['original hook'];
   }
 
-  foreach ($skinr_config as $module => $settings) {
-    if (!empty($settings['preprocess'][$original_hook])) {
-      $preprocess_settings = $settings['preprocess'][$original_hook];
+  foreach ($config as $module => $module_settings) {
+    if (!empty($module_settings['preprocess'][$original_hook])) {
+      $preprocess_settings = $module_settings['preprocess'][$original_hook];
       $sids = skinr_handler('preprocess_index_handler', 'preprocess', $preprocess_settings['index_handler'], $variables);
 
-      if ($extracted = skinr_skin_extract($module, $sids, $settings, $current_theme)) {
+      if ($extracted = skinr_skin_extract($module, $sids, $current_theme)) {
+        // @todo How can this be done better with drupal_process_attached()?
         foreach ($extracted['css'] as $file) {
           if ($file['enabled']) {
-            _skinr_add_file($file['path'], 'css', $file['media']);
+            drupal_add_css($file['path'], $file['file_options']);
           }
         }
         foreach ($extracted['js'] as $file) {
           if ($file['enabled']) {
-            _skinr_add_file($file['path'], 'js');
+            drupal_add_js($file['path'], $file['file_options']);
           }
         }
         $variables['classes_array'] = array_merge($variables['classes_array'], $extracted['classes']);
@@ -106,8 +109,11 @@ function skinr_preprocess(&$variables, $hook) {
  * @return
  *   An array containing the module, sids, classes, CSS, JS, template to be
  *   applied.
+ *
+ * @todo Rename this function to something more indicative of its function.
+ * @todo Rename $sids to something more descriptive; these are skin ids.
  */
-function skinr_skin_extract($module, $sids, $settings, $theme = NULL) {
+function skinr_skin_extract($module, $sids, $theme = NULL) {
   if (empty($sids)) {
     return FALSE;
   }
@@ -126,21 +132,17 @@ function skinr_skin_extract($module, $sids, $settings, $theme = NULL) {
     'js' => array(),
   );
 
-  $skins = array();
+  $options = array();
   foreach ($sids as $sid) {
-    if ($skinr = skinr_get($theme, $module, $sid)) {
-      $skins = $skinr->skins + $skins;
+    if ($skin = skinr_skin_load($theme, $module, $sid)) {
+      $options = $skin->skins + $options;
     }
   }
 
-  // Allow other modules to alter the skinr skins array.
-  // @todo Fix this to work with skinr ui.
-  drupal_alter('skinr_skins', $skins, $module, $sids, $settings);
+  $extracted['css'] = skinr_skin_get_files($options, 'css', $theme);
+  $extracted['js'] = skinr_skin_get_files($options, 'js', $theme);
 
-  $extracted['css'] = skinr_skin_get_files($skins, 'css', $theme);
-  $extracted['js'] = skinr_skin_get_files($skins, 'js', $theme);
-
-  $extracted['classes'] = skinr_flatten_skins_array($skins);
+  $extracted['classes'] = skinr_flatten_skins_array($options);
 
   return $extracted;
 }
@@ -148,8 +150,8 @@ function skinr_skin_extract($module, $sids, $settings, $theme = NULL) {
 /**
  * Helper function to fetch all CSS or JS files from an array of skins.
  *
- * @param $skins
- *   A an array of available skins.
+ * @param $skin_options
+ *   A an array of skin options.
  * @param $type
  *   Either 'css' or 'js', depending on which files you wish to retrieve from
  *   these skins.
@@ -159,100 +161,70 @@ function skinr_skin_extract($module, $sids, $settings, $theme = NULL) {
  * @return
  *   An array of file data.
  */
-function skinr_skin_get_files($skins, $type, $theme = NULL) {
+function skinr_skin_get_files($skin_options, $type, $theme = NULL) {
   if (empty($theme)) {
     $theme = skinr_current_theme();
   }
 
-  $info = skinr_skin_data();
+  $skin_infos = skinr_get_skin_info();
   $files = array();
-
-  if ($type == 'css') {
-    foreach ($skins as $skin => $classes) {
-      // Add custom CSS files.
-      if (isset($info[$theme]->skins[$skin])) {
-        if (!empty($info[$theme]->skins[$skin]['stylesheets'])) {
-          foreach ($info[$theme]->skins[$skin]['stylesheets'] as $media => $stylesheets) {
-            foreach ($stylesheets as $file => $path) {
-              $files[] = array(
-                'file' => $file,
-                'path' => $path,
-                'media' => $media,
-                'enabled' => TRUE,
-                'skin' => $skin,
-                'options' => 0,
-              );
-            }
-          }
-        }
-        foreach ($info[$theme]->skins[$skin]['options'] as $option_id => $option) {
-          if (!empty($option['stylesheets'])) {
-            foreach ($option['stylesheets'] as $media => $stylesheets) {
-              foreach ($stylesheets as $file => $path) {
-                $enabled = FALSE;
-                if (is_array($classes)) {
-                  if (in_array($option['class'], $classes)) {
-                    $enabled = TRUE;
-                  }
-                }
-                else {
-                  if ($option['class'] == $classes) {
-                    $enabled = TRUE;
-                  }
-                }
-
-                $files[] = array(
-                  'file' => $file,
-                  'path' => $path,
-                  'media' => $media,
-                  'enabled' => $enabled,
-                  'skin' => $skin,
-                  'options' => $option_id,
-                );
-              }
-            }
-          }
-        }
+  if (!empty($skin_options['_options'])) {
+    foreach ($skin_options['_options'] as $skin_name => $skin_option) {
+      if (!is_array($skin_options)) {
+        $skin_options = array($skin_options);
       }
-    }
-  }
-  elseif ($type == 'js') {
-    foreach ($skins as $skin => $classes) {
-      // Add custom JS files.
-      if (isset($info[$theme]->skins[$skin])) {
-        if (isset($info[$theme]->skins[$skin]['scripts'])) {
-          foreach ($info[$theme]->skins[$skin]['scripts'] as $file => $path) {
-            $files[] = array(
-              'file' => $file,
+
+      // Check if the $skin_name is enabled for this theme.
+      if (!empty($skin_infos[$skin_name]['status'][$theme])) {
+        // Check if this skin has any stylesheets attached to it.
+        if (!empty($skin_infos[$skin_name]['attached'][$type])) {
+          foreach ($skin_infos[$skin_name]['attached'][$type] as $file) {
+            if (is_array($file)) {
+              $path = $file[0];
+              $file_options = count($file) > 1 ? $file[1] : NULL;
+            }
+            else {
+              $path = $file;
+              $file_options = NULL;
+            }
+            $files[$path] = array(
+              'file' => basename($path),
               'path' => $path,
+              'file_options' => $file_options,
               'enabled' => TRUE,
-              'skin' => $skin,
-              'options' => 0,
+              'skin' => $skin_name,
+              'skin_option' => NULL,
             );
           }
         }
-        foreach ($info[$theme]->skins[$skin]['options'] as $option_id => $option) {
-          if (isset($option['scripts'])) {
-            foreach ($option['scripts'] as $file => $path) {
-              $enabled = FALSE;
-                if (is_array($classes)) {
-                  if (in_array($option['class'], $classes)) {
-                    $enabled = TRUE;
-                  }
-                }
-                else {
-                  if ($option['class'] == $classes) {
-                    $enabled = TRUE;
-                  }
-                }
 
-              $files[] = array(
-                'file' => $file,
+        foreach ($skin_infos[$skin_name]['options'] as $skin_info_option_name => $skin_info_option) {
+          if (!empty($skin_info_option['attached'][$type])) {
+            foreach ($skin_info_option['attached'][$type] as $file) {
+              $enabled = FALSE;
+              if (in_multiarray($skin_info_option_name, $skin_options)) {
+                $enabled = TRUE;
+              }
+
+              if (is_array($file)) {
+                $path = $file[0];
+                $file_options = count($file) > 1 ? $file[1] : NULL;
+              }
+              else {
+                $path = $file;
+                $file_options = NULL;
+              }
+
+              $files[$path] = array(
+                'file' => basename($path),
                 'path' => $path,
-                'enabled' => $enabled,
-                'skin' => $skin,
-                'options' => $option_id,
+                'file_options' => $file_options,
+                'skin' => $skin_name,
+                'skin_option' => $skin_info_option_name,
               );
+              // Allow for other options to set the same file; make sure it's
+              // enabled when required.
+              $files[$path]['enabled'] = (!empty($files[$path]['enabled']) ? $files[$path]['enabled'] : FALSE) || $enabled;
             }
           }
         }
@@ -264,52 +236,64 @@ function skinr_skin_get_files($skins, $type, $theme = NULL) {
 }
 
 /**
- * Helper function to add CSS and JS files to a page.
+ * Checks if a value exists in a multi-dimensional array.
  *
- * This function uses drupal_add_css() and drupal_add_js() to add the files.
+ * @param $needle
+ *   The value to find.
+ * @param $haystack
+ *   The array.
  *
- * @param $filename
- *   The name of the file to add.
- * @param $type
- *   The type of file. Options include: 'css' and 'js'.
- * @param $media
- *   (optional) The media type for the stylesheet, e.g., 'all', 'print',
- *   'screen'. Only required if $type is set to 'css'.
+ * @return
+ *   Returns TRUE if $needle is found in the array, FALSE otherwise.
  */
-function _skinr_add_file($filename, $type, $media = NULL) {
-  if ($type == 'css') {
-    drupal_add_css($filename, array('weight' => CSS_THEME, 'media' => $media));
+function in_multiarray($needle, $haystack) {
+  if (is_array($haystack)) {
+    // If $needle is in $haystack return TRUE.
+    if (in_array($needle, $haystack)) {
+      return TRUE;
+    }
+
+    // If $needle isn't in $haystack, then check each item in the array.
+    foreach ($haystack as $haybale) {
+      if (is_array($haybale) && in_multiarray($needle, $haybale)) {
+        return TRUE;
+      }
+    }
   }
-  else {
-    drupal_add_js($filename, array('weight' => JS_THEME));
-  }
+
+  return FALSE;
 }
 
 /**
- * Helper function to flatten an array of classes settings.
+ * Returns an array of classes.
  *
- * @param $skins
- *   The array of skins to flatten.
+ * @param $skin_options
+ *   An array containing the following keys:
+ *   - _options: An array of skin options keyed by their skin name.
+ *   - _additional: A string containing additional classes to apply.
  *
- * @return
- *   An array of classes.
+ * @todo Rename function to reflect new functionality.
  */
-function skinr_flatten_skins_array($skins) {
-  $return = array();
-  foreach ($skins as $entry) {
-    if (is_array($entry)) {
-      foreach ($entry as $subentry) {
-        if (!empty($subentry)) {
-          $return[] = check_plain($subentry);
+function skinr_flatten_skins_array($skin_options) {
+  $skin_infos = skinr_get_skin_info();
+
+  $classes = array();
+  if (!empty($skin_options['_options'])) {
+    foreach ($skin_options['_options'] as $skin_name => $options) {
+      if (!is_array($options)) {
+        $options = array($options);
+      }
+      foreach ($options as $option) {
+        if (!empty($skin_infos[$skin_name]['options'][$option]['class'])) {
+          $classes = array_merge($classes, $skin_infos[$skin_name]['options'][$option]['class']);
         }
       }
     }
-    elseif (!empty($entry)) {
-      $return[] = check_plain($entry);
-    }
   }
-
-  return $return;
+  if (!empty($skin_options['_additional'])) {
+    $classes[] = $skin_options['_additional'];
+  }
+  return array_unique($classes);
 }
 
 // ------------------------------------------------------------------
@@ -483,63 +467,63 @@ function skinr_get_module_apis() {
 // Skinr data handling functions.
 
 /**
- * Validate a skinr settings object.
+ * Validate a skinr object.
  *
- * @param $skinr
- *   The skinr settings object to validate.
+ * @param $skin
+ *   A skin object.
  *
  * @return
  *   TRUE on success, FALSE on failure.
  */
-function skinr_validate(&$skinr) {
-  if (!isset($skinr->theme) || !isset($skinr->module) || !isset($skinr->sid) || !isset($skinr->skins)) {
+function skinr_skin_validate(&$skin) {
+  if (!isset($skin->theme) || !isset($skin->module) || !isset($skin->sid) || !isset($skin->skins)) {
     return FALSE;
   }
-  if (!isset($skinr->settings)) {
-    $skinr->settings = array();
+  if (!isset($skin->settings)) {
+    $skin->settings = array();
   }
-  if (!is_array($skinr->skins) || !is_array($skinr->settings)) {
+  if (!is_array($skin->skins) || !is_array($skin->settings)) {
     return FALSE;
   }
 
   // Strip empty skins.
-  $skinr->skins = _skinr_array_strip_empty($skinr->skins);
+  $skin->skins = _skinr_array_strip_empty($skin->skins);
 
   return TRUE;
 }
 
 /**
- * Save a skinr settings object.
+ * Save a skin object.
  *
- * @param $skinr
- *   A skinr object.
+ * @param $skin
+ *   A skin object.
  *
  * @return
  *   TRUE on success, FALSE on failure.
  */
-function skinr_set($skinr) {
+function skinr_skin_save($skin) {
   // Make sure we're getting valid data.
-  if (!skinr_validate($skinr)) {
+  if (!skinr_skin_validate($skin)) {
     return FALSE;
   }
 
-  if (empty($skinr->skins) && empty($skinr->settings)) {
+  if (empty($skin->skins) && empty($skin->settings)) {
     // Delete the db entry if it exists.
     db_delete('skinr')
-      ->condition('theme', $skinr->theme)
-      ->condition('module', $skinr->module)
-      ->condition('sid', $skinr->sid)
+      ->condition('theme', $skin->theme)
+      ->condition('module', $skin->module)
+      ->condition('sid', $skin->sid)
       ->execute();
   }
   else {
     // Let's save the data.
-    if (skinr_get($skinr->theme, $skinr->module, $skinr->sid) !== FALSE) {
+    if (skinr_skin_load($skin->theme, $skin->module, $skin->sid) !== FALSE) {
       // Record exists, so let's update.
-      drupal_write_record('skinr', $skinr, array('theme', 'module', 'sid'));
+      drupal_write_record('skinr', $skin, array('theme', 'module', 'sid'));
     }
     else {
       // Insert a new record.
-      drupal_write_record('skinr', $skinr);
+      drupal_write_record('skinr', $skin);
     }
   }
 
@@ -547,7 +531,38 @@ function skinr_set($skinr) {
 }
 
 /**
- * Retrieves the desired skinr settings object.
+ * Delete a skin object.
+ *
+ * @param $theme
+ *   The theme this skin applies to. If no theme name is provided, the
+ *   current theme will be used.
+ * @param $module
+ *   The module.
+ * @param $sid
+ *   The element ID.
+ */
+function skinr_skin_delete($theme = NULL, $module = NULL, $sid = NULL) {
+  node_delete_multiple(array(array($theme, $module, $sid)));
+}
+
+/**
+ * Delete multiple skin objects.
+ *
+ * @param $arguments
+ *   An array of arrays containing the following arguments:
+ *   - $theme
+ *   - $module
+ *   - $sid
+ *
+ * @see skinr_skin_delete().
+ *
+ * @todo Make this function functional.
+ */
+function skinr_skin_delete_multiple($arguments) {
+}
+
+/**
+ * Retrieves the desired skinr object.
  *
  * @param $theme
  *   The theme these settings apply to. If no theme name is provided, the
@@ -558,24 +573,25 @@ function skinr_set($skinr) {
  *   The element ID these settings apply to.
  *
  * @return
- *   A skinr settings object if both $module and $sid are specified. An array
- *   of skinr settings objects if only $module is specified. An array of all
- *   skinr settings objects for a theme if neither $module nor $sid is
- *   specified. FALSE on failure.
+ *   A skin object if both $module and $sid are specified. An array of skin
+ *   objects if only $module is specified. An array of all skin objects for a
+ *   theme if neither $module nor $sid is specified. FALSE on failure.
+ *
+ * @todo Rename $skin->skins to $skin->options throughout the module.
  */
-function skinr_get($theme = NULL, $module = NULL, $sid = NULL) {
-  $cache = &drupal_static(__FUNCTION__, array());
+function skinr_skin_load($theme = NULL, $module = NULL, $sid = NULL) {
+  $skins = &drupal_static(__FUNCTION__, array());
 
   if (is_null($theme)) {
     $theme = skinr_current_theme();
   }
 
-  if (!isset($cache[$theme][$module][$sid])) {
-    if (!isset($cache[$theme])) {
-      $cache[$theme] = array();
+  if (!isset($skins[$theme][$module][$sid])) {
+    if (!isset($skins[$theme])) {
+      $skins[$theme] = array();
     }
-    if (!is_null($module) && !isset($cache[$theme][$module])) {
-      $cache[$theme][$module] = array();
+    if (!is_null($module) && !isset($skins[$theme][$module])) {
+      $skins[$theme][$module] = array();
     }
 
     if (!is_null($module) && !is_null($sid)) {
@@ -600,29 +616,46 @@ function skinr_get($theme = NULL, $module = NULL, $sid = NULL) {
       ));
     }
 
-    foreach ($result as $skinr) {
-      $skinr->settings = unserialize($skinr->settings);
-      $skinr->skins = unserialize($skinr->skins);
-      $cache[$skinr->theme][$skinr->module][$skinr->sid] = $skinr;
+    foreach ($result as $skin) {
+      $skin->settings = unserialize($skin->settings);
+      $skin->skins = unserialize($skin->skins);
+      $skins[$skin->theme][$skin->module][$skin->sid] = $skin;
     }
   }
 
   if (is_null($sid) && is_null($module)) {
     // Return all the skinrs for the theme.
-    if (isset($cache[$theme])) {
-      return $cache[$theme];
+    if (isset($skins[$theme])) {
+      return $skins[$theme];
     }
   }
   elseif(is_null($sid)) {
     // Return all the skinrs for the module.
-    if (isset($cache[$theme][$module])) {
-      return $cache[$theme][$module];
+    if (isset($skins[$theme][$module])) {
+      return $skins[$theme][$module];
     }
   }
-  elseif (isset($cache[$theme][$module][$sid])) {
-    return $cache[$theme][$module][$sid];
+  elseif (isset($skins[$theme][$module][$sid])) {
+    return $skins[$theme][$module][$sid];
   }
   return FALSE;
+}
+
+/**
+ * Load multiple skin objects.
+ *
+ * @param $arguments
+ *   An array of arrays containing the following arguments:
+ *   - $theme
+ *   - $module
+ *   - $sid
+ *
+ * @see skinr_skin_load().
+ *
+ * @todo Make this function functional.
+ * @todo Look at using hook_entity_info() and entity_load().
+ */
+function skinr_skin_load_multiple($arguments) {
 }
 
 /**
@@ -677,32 +710,15 @@ function skinr_current_theme($exclude_admin_theme = FALSE) {
 }
 
 /**
- * Prepare defaults for skinsets.
- *
- * @return
- *   An array of default skinset settings.
- */
-function skinr_skins_default() {
-  return array(
-    'description' => '',
-    'screenshot' => 'screenshot.png',
-    'php' => DRUPAL_MINIMUM_PHP,
-    'skinr' => array(),
-  );
-}
-
-/**
  * Prepare defaults for groups.
  *
  * @return
  *   An array of default group settings.
  */
-function skinr_group_default() {
+function skinr_group_info_default() {
   return array(
     'title' => '',
     'description' => '',
-    'collapsible' => TRUE,
-    'collapsed' => FALSE,
     'weight' => NULL,
   );
 }
@@ -713,311 +729,265 @@ function skinr_group_default() {
  * @return
  *   An array of default skin settings.
  */
-function skinr_skin_default() {
+function skinr_skin_info_default() {
   return array(
+    'name' => '',
     'title' => '',
     'type' => 'checkboxes',
     'description' => '',
-    'features' => array('*'),
     'group' => '',
+    'theme hooks' => array('*'),
+    'attached' => array(),
     'options' => array(),
-    'stylesheets' => array(),
-    'scripts' => array(),
     'weight' => NULL,
+    'default_status' => 0,
+    'status' => array(),
   );
 }
 
 /**
- * Helper function to process a skin or theme .info file.
+ * Prepare the default status for a skin.
  *
- * @param $info
- *   An array of data as gotten from a skin or theme .info file.
+ * @param $default_status
+ *   The default status for all themes for a skin.
  *
  * @return
- *    A processed set of skins.
+ *   An array of default statuses for each enabled theme.
  */
-function _skinr_skinset($info) {
-  $skinset = array(
-    'options' => array('groups' => array()),
-    'skins' => array(),
-  );
-
-  if (!empty($info->info['skinr'])) {
-    $path_root = dirname($info->filename);
-
-    $skinr_info = (array)$info->info['skinr'];
-
-    // Store skinr options.
-    if (!empty($skinr_info['options'])) {
-      $skinset['options'] = $skinr_info['options'];
-      unset($skinr_info['options']);
-
-      if (!isset($skinset['options']['groups'])) {
-        $skinset['options']['groups'] = array();
-      }
-
-      $defaults = skinr_group_default();
-      foreach ($skinset['options']['groups'] as $id => $group) {
-        $skinset['options']['groups'][$id] = array_merge($defaults, $skinset['options']['groups'][$id]);
-        $skinset['options']['groups'][$id]['collapsible'] = (bool)$skinset['options']['groups'][$id]['collapsible'];
-        $skinset['options']['groups'][$id]['collapsed'] = (bool)$skinset['options']['groups'][$id]['collapsed'];
-        $skinset['options']['groups'][$id]['weight'] = $skinset['options']['groups'][$id]['weight'];
-      }
+function skinr_skin_info_status_default($default_status = 0) {
+  $status = array();
+  foreach (list_themes() as $theme_name => $theme) {
+    if (!$theme->status) {
+      continue;
     }
-
-    $defaults = skinr_skin_default();
-
-    foreach ($skinr_info as $id => $skin) {
-      if (!is_array($skin)) {
-        continue;
-      }
-      $skinset['skins'][$id] = array(
-        'title' => isset($skin['title']) ? $skin['title'] : $defaults['title'],
-        'type' => isset($skin['type']) ? $skin['type'] : $defaults['type'],
-        'description' => isset($skin['description']) ? $skin['description'] : $defaults['description'],
-        'features' => isset($skin['features']) ? $skin['features'] : $defaults['features'],
-        'group' => !empty($skin['group']) && !empty($skinset['options']['groups'][$skin['group']]) ? $skin['group'] : $defaults['group'],
-        'options' => isset($skin['options']) ? $skin['options'] : $defaults['options'],
-        'stylesheets' => isset($skin['stylesheets']) ? $skin['stylesheets'] : $defaults['stylesheets'],
-        'scripts' => isset($skin['scripts']) ? $skin['scripts'] : $defaults['scripts'],
-        'weight' => isset($skin['weight']) ? $skin['weight'] : $defaults['weight'],
-      );
-
-      // Give the stylesheets proper path information.
-      $skinset['skins'][$id]['stylesheets'] = _skinr_add_path_to_files($skinset['skins'][$id]['stylesheets'], $path_root, 'css');
-
-      // Give the scripts proper path information.
-      $skinset['skins'][$id]['scripts'] = _skinr_add_path_to_files($skinset['skins'][$id]['scripts'], $path_root, 'js');
-
-      foreach ($skinset['skins'][$id]['options'] as $oid => $option) {
-        if (isset($option['stylesheets'])) {
-          $skinset['skins'][$id]['options'][$oid]['stylesheets'] = _skinr_add_path_to_files($option['stylesheets'], $path_root, 'css');
-        }
-        if (isset($option['scripts'])) {
-          $skinset['skins'][$id]['options'][$oid]['scripts'] = _skinr_add_path_to_files($option['scripts'], $path_root, 'js');
-        }
-      }
-    }
+    $status[$theme_name] = $default_status;
   }
-
-  return $skinset;
+  return $status;
 }
 
 /**
- * Helper function to prepend a path to an array of stylesheets or scripts in a
- * .info file.
+ * Get a list of plugin hooks.
+ *
+ * @return
+ *   An array of hook details keyed by hook name. The hook details contain the
+ *   following keys:
+ *   - 'type': Available options are 'module' or 'theme'.
+ *   - 'name': The name of the owner module or theme of this plugin.
+ *   - 'plugin': The name of the skins plugin.
+ *   - 'path': This plugin's path.
+ */
+function skinr_plugin_hooks() {
+  // @todo Load the include files and get an array of hooks; we need to
+  //   know which module and which plugin comprises the hook.
+  $hooks = array();
+  return $hooks;
+}
+
+/**
+ * Helper function to prepend a path to an array of stylesheets or scripts
+ * in a .info file. If the url is absolute (e.g. the url start with 'http://')
+ * the path does not get prepended.
  *
  * @param $files
  *   A an array of filenames that need the path prepended.
+ *   @todo Adjust docs to account for arrays instead of filenames.
  * @param $path
  *   The path to prepend.
- * @param $type
- *   Either 'css' or 'js', depending on which files you wish to retrieve from
- *   these skins.
- *
- * @return
- *    An array of files with the root path added.
  */
-function _skinr_add_path_to_files($files, $path, $type) {
-  if ($type == 'css') {
-    $pathed_stylesheets = array();
-    foreach ($files as $media => $stylesheets) {
-      foreach ($stylesheets as $stylesheet) {
-        $pathed_stylesheets[$media][$stylesheet] = $path . '/' . $stylesheet;
+function _skinr_add_path_to_files(&$files, $path) {
+  foreach ($files as $key => $file) {
+    if (is_array($file)) {
+      if (strpos($file[0], 'http://') === 0) {
+        continue;
       }
+      $files[$key][0] = $path . '/' . $file[0];
     }
-    return $pathed_stylesheets;
-  }
-  elseif ($type == 'js') {
-    $pathed_scripts = array();
-    foreach ($files as $script) {
-      $pathed_scripts[$script] = $path . '/' . $script;
+    else {
+      if (strpos($file, 'http://') === 0) {
+        continue;
+      }
+      $files[$key] = $path . '/' . $file;
     }
-    return $pathed_scripts;
   }
-
-  return FALSE;
 }
 
 /**
- * Helper function to process an array of skins.
+ * Parse a skin_infos array as returned from a skins plugin.
+ *
+ * This function inserts any missing defaults and updates the stylesheet and
+ * script paths to be relative to drupal's root.
+ *
+ * @param $skin_infos
+ *   A skins array as returned from a skins plugin.
+ * @param $source
+ *   An array with the following keys:
+ *   - 'type': Available options are 'module' or 'theme'.
+ *   - 'name': The name of the owner module or theme of this plugin.
+ *   - 'plugin': The name of the skins plugin.
+ *   - 'path': This plugin's path.
+ */
+function skinr_skin_info_process(&$skin_infos, $source) {
+  foreach ($skin_infos as $skin_name => $skin_info) {
+    // Merge in defaults.
+    $skin_infos[$skin_name] = array_merge(skinr_skin_info_default(), $skin_infos[$skin_name]);
+
+    // Merge in name.
+    $skin_infos[$skin_name]['name'] = $skin_name;
+
+    // Merge in source information.
+    $skin_infos[$skin_name]['source'] = $source;
+
+    // Merge in default statuses for all themes.
+    $skin_infos[$skin_name]['status'] = array_merge(skinr_skin_info_status_default($skin_infos[$skin_name]['default_status']), $skin_infos[$skin_name]['status']);
+
+    // @todo Apply overridden statuses. This will need to be loaded from
+    //   database.
+
+    // Add path to stylesheets.
+    if (isset($skin_infos[$skin_name]['attached']['css'])) {
+      _skinr_add_path_to_files($skin_infos[$skin_name]['attached']['css'], $source['path']);
+    }
+    // Add path to scripts.
+    if (isset($skin_infos[$skin_name]['attached']['js'])) {
+      _skinr_add_path_to_files($skin_infos[$skin_name]['attached']['js'], $source['path']);
+    }
+
+    foreach ($skin_infos[$skin_name]['options'] as $option_name => $option) {
+      // Add path to stylesheets.
+      if (isset($option['attached']['css'])) {
+        _skinr_add_path_to_files($skin_infos[$skin_name]['options'][$option_name]['attached']['css'], $source['path']);
+      }
+      // Add path to scripts.
+      if (isset($option['attached']['js'])) {
+        _skinr_add_path_to_files($skin_infos[$skin_name]['options'][$option_name]['attached']['js'], $source['path']);
+      }
+
+      // Validate class by running it through drupal_html_class().
+      if (!is_array($skin_infos[$skin_name]['options'][$option_name]['class'])) {
+        $skin_infos[$skin_name]['options'][$option_name]['class'] = array($skin_infos[$skin_name]['options'][$option_name]['class']);
+      }
+      foreach ($skin_infos[$skin_name]['options'][$option_name]['class'] as $key => $class) {
+        $skin_infos[$skin_name]['options'][$option_name]['class'][$key] = drupal_html_class($class);
+      }
+    }
+  }
+}
+
+/**
+ * Retrieves a list of all available skins.
  *
  * @return
  *    An array of skins.
  */
-function skinr_skinsets() {
-  $skinsets = &drupal_static(__FUNCTION__, array());
+function skinr_get_skin_info() {
+  $skin_infos = &drupal_static(__FUNCTION__);
 
-  if (!empty($skinsets)) {
-    $result = db_query("SELECT * FROM {skinr_skinsets}");
-    foreach ($result as $skinset) {
-      if (file_exists($skinset->filename)) {
-        $skinset->info = unserialize($skinset->info);
-        $skinsets[$skinset->name] = $skinset;
+  if (!isset($skin_infos)) {
+    // Set skins to an array to avoid errors down the line if no skins
+    // are found.
+    $skin_infos = array();
+
+    // Load skins from hook_skinr_skins().
+    $hooks = skinr_plugin_hooks();
+    foreach ($hooks as $hook => $source) {
+      // @todo Update the hook name once we settle on one.
+      $function = $hook . '_skinr_skin_info';
+      $result = $function();
+      if (isset($result)) {
+        if (!is_array($result)) {
+          $result = array($result);
+        }
+
+        // Make any programatic changes.
+        skinr_skin_info_process($result, $source);
+
+        $skin_infos = array_merge_recursive($skin_infos, $result);
       }
     }
 
-    $themes = list_themes();
-    $default_status = array();
-    foreach ($themes as $theme) {
-      $default_status[$theme->name] = $theme->name;
-    }
-
-    foreach ($skinsets as $key => $skinset) {
-      if (isset($themes[$key])) {
-        $skinset->type = 'theme';
-        $skinset->status = !empty($theme->status) ? 1 : 0;
-      }
-      else {
-        $skinset->type = 'skinset';
-      }
-
-      // @todo Allow skins to inherit from other skins.
-
-      $additional = _skinr_skinset($skinset);
-      $skinset->options = $additional['options'];
-      $skinset->skins = $additional['skins'];
-
-      $statuses = skinr_skinset_statuses($skinset->name);
-      foreach ($skinset->skins as $skin_name => $skin) {
-        $skinset->skins[$skin_name]['status'] = !empty($statuses[$skin_name]) ? $statuses[$skin_name] : $default_status;
-      }
-    }
+    // Allow modules to alter skin infos through hook_skinr_skin_info_alter().
+    drupal_alter('skinr_skin_info', $skin_infos);
   }
 
-  return $skinsets;
+  return $skin_infos;
 }
 
 /**
- * Return an array of statuses for each skin in a skinset for each theme.
- *
- * @param $skinset_name
- *   The name of the skinset for which to load the statuses.
+ * Retrieves a list of all available groups.
  *
  * @return
- *   Array of statuses for individual skins in a skinset.
+ *    An array of groups.
  */
-function skinr_skinset_statuses($skinset_name) {
-  $statuses = &drupal_static(__FUNCTION__, array());
+function skinr_get_group_info() {
+  $group_infos = &drupal_static(__FUNCTION__);
 
-  if (empty($statuses[$skinset_name])) {
-    $statuses[$skinset_name] = array();
+  if (!isset($group_infos)) {
+    // Set groups to an array to avoid errors down the line if no groups
+    // are found.
+    $group_infos = array();
 
-    $result = db_query("SELECT * FROM {skinr_skins} WHERE name = :name", array(':name' => $skinset_name));
-    foreach ($result as $skinr_skin) {
-      $statuses[$skinset_name][$skinr_skin->skin] = unserialize($skinr_skin->status);
+    // Load skins from hook_skinr_groups().
+    $hooks = skinr_plugin_hooks();
+    foreach ($hooks as $hook => $source) {
+      // @todo Update the hook name once we settle on one.
+      $function = $hook . '_skinr_group_info';
+      $result = $function();
+      if (isset($result)) {
+        if (!is_array($result)) {
+          $result = array($result);
+        }
+
+        // Make any programatic changes.
+        // Merge in defaults.
+        foreach ($result as $group_name => $group_info) {
+          $result[$group_name] = array_merge(skinr_group_info_default(), $group_info);
+        }
+
+        $group_infos = array_merge_recursive($group_infos, $result);
+      }
     }
+
+    // Allow modules to alter groups through hook_skinr_group_info_alter().
+    drupal_alter('skinr_group_info', $group_infos);
   }
 
-  return $statuses[$skinset_name];
+  return $group_infos;
 }
 
 /**
- * Processes and compiles a list of all skins.
- *
- * @return
- *    An array of skinsets keyed by themename.
- *
- * @todo Use DB caching. No need to keep processing things every page load.
- */
-function skinr_skin_data() {
-  $cache = &drupal_static(__FUNCTION__);
-
-  if (is_null($cache)) {
-    $skinsets = skinr_skinsets();
-
-    // Need to merge all skins skinsets into a single list of skins.
-    // Also merge in the groups information.
-    $additional_skins = array();
-    $groups = array();
-    foreach ($skinsets as $key => $skinset) {
-      if ($skinset->type == 'skinset') {
-        if (!empty($skinset->skins) && $skinset->status == 1) {
-          $additional_skins += $skinset->skins;
-        }
-        if (!empty($skinset->options['groups'])) {
-          $groups += $skinset->options['groups'];
-        }
-      }
-    }
-
-    // Merge the additional skins into each theme, even if that theme has no
-    // skinr data.
-    $themes = list_themes();
-    foreach ($themes as $theme) {
-      if ($theme->status != 1) {
-        continue;
-      }
-
-      if (!empty($skinsets[$theme->name])) {
-        $cache[$theme->name] = $skinsets[$theme->name];
-        $cache[$theme->name]->skins += $additional_skins;
-        $cache[$theme->name]->options['groups'] += $groups;
-      }
-      else {
-        $cache[$theme->name] = new stdClass();
-        $cache[$theme->name]->name = $theme->name;
-        $cache[$theme->name]->status = 1;
-        $cache[$theme->name]->type = 'theme';
-        $cache[$theme->name]->skins = $additional_skins;
-        $cache[$theme->name]->options = array('groups' => $groups);
-      }
-    }
-  }
-
-  return $cache;
-}
-
-/**
- * Fetch Skinr configuration data from Skinr functionality plugins.
+ * Fetch Skinr configuration data from functionality plugins.
  *
  * @return
  *   An array of all configuration data.
  */
-function skinr_fetch_config() {
-  $cache = &drupal_static(__FUNCTION__);
+function skinr_get_config_info() {
+  $config = &drupal_static(__FUNCTION__);
 
-  if (is_null($cache)) {
-    $cache = module_invoke_all('skinr_config');
-    foreach (module_implements('skinr_config_alter') as $module) {
-      $function = $module . '_skinr_config_alter';
-      $function($cache);
-    }
+  if (is_null($config)) {
+    $config = module_invoke_all('skinr_config_info');
+    drupal_alter('skinr_config_info', $config);
   }
 
-  return $cache;
+  return $config;
 }
 
 /**
- * Fetch default configuration data for Skinr functionality plugins.
- *
- * @param @setting
- *   The value 'form'. There are no other valid options.
- *
- * @return
- *   Returns an array of default values.
- *
- * @todo Remove the $setting parameter. There is only ever one option used:
- *  'form'.
+ * Prepare default configuration data for modules.
  */
-function _skinr_fetch_config_defaults($setting) {
-  switch ($setting) {
-    case 'form':
-      $data = array(
-        'access_handler' => 'skinr_access_handler',
-        'index_handler' => 'skinr_index_handler',
-        'data_handler' => 'skinr_data_handler',
-        'submit_handler' => 'skinr_submit_handler',
-        'submit_handler_attach_to' => array('#submit'),
-        'skinr_title' => t('Skinr'),
-        'skinr_weight' => 1,
-        'title' => '',
-        'description' => t('Manage which skins you want to apply to the hooks'),
-        'collapsed' => TRUE,
-        'weight' => 0,
-      );
-      return $data;
-  }
+function skinr_config_info_default() {
+  return array(
+    'access_handler' => 'skinr_access_handler',
+    'index_handler' => 'skinr_index_handler',
+    'data_handler' => 'skinr_data_handler',
+    'submit_handler' => 'skinr_submit_handler',
+    'submit_handler_attach_to' => array('#submit'),
+    'skinr_title' => t('Skinr'),
+    'skinr_weight' => 1,
+    'title' => '',
+    'description' => t('Manage which skins you want to apply to the hooks'),
+    'collapsed' => TRUE,
+    'weight' => 0,
+  );
 }
 
 /**

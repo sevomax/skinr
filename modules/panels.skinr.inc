@@ -12,9 +12,9 @@
  */
 
 /**
- * Implements hook_skinr_config().
+ * Implements hook_skinr_config_info().
  */
-function panels_skinr_config() {
+function panels_skinr_config_info() {
   $data['panels']['form']['panels_edit_style_settings_form'] = array(
     'index_handler' => 'panels_skinr_form_index_handler',
     'data_handler' => 'panels_skinr_data_handler',
@@ -197,7 +197,7 @@ function panels_skinr_data_handler(&$form, $form_state, $theme, $module, $form_s
   }
 
   // No data exists in cache, so let's grab it from the regular source.
-  return skinr_get($theme, $module, $index);
+  return skinr_skin_load($theme, $module, $index);
 }
 
 /**
@@ -225,8 +225,8 @@ function panels_skinr_submit_handler_settings(&$form, $form_state, $module, $for
       $value = array();
 
       if (!empty($theme['widgets']) && is_array($theme['widgets'])) {
-        foreach ($theme['widgets'] as $skin_id => $skin_value) {
-          $value[$skin_id] = $skin_value;
+        foreach ($theme['widgets'] as $skin_name => $skin_value) {
+          $value['_options'][$skin_name] = $skin_value;
         }
       }
 
@@ -247,7 +247,7 @@ function panels_skinr_submit_handler_settings(&$form, $form_state, $module, $for
       if (!$skinr_data = ctools_object_cache_get('skinr', $form_state['display']->did, TRUE)) {
         $skinr_data = array();
         // Fetch skinr data.
-        $skinr = skinr_get($theme_name);
+        $skinr = skinr_skin_load($theme_name);
         if (isset($skinr[$module])) {
           foreach ($skinr[$module] as $skinr_key => $skinr_value) {
             if (drupal_substr($skinr_key, 0, drupal_strlen('display-' . $form_state['display']->did)) == 'display-' . $form_state['display']->did) {
@@ -318,7 +318,7 @@ function _panels_skinr_save_and_clear_cache($did) {
         $skinr->sid = $sid;
         $skinr->skins = $skins;
 
-        skinr_set($skinr);
+        skinr_skin_save($skinr);
       }
     }
     ctools_object_cache_clear('skinr', $did);
