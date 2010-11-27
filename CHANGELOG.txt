@@ -2,20 +2,23 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
-#956990 by moonray, sun: Changed function and variable names to follow Drupal core.
-#957070 by moonray, sun: Changed Fix and update code documentation.
-#957388 by Jacine | sun, Jeff Burnz: Fixed theme_skinr_ui_filters() still uses dl.multiselect markup/styling.
-#948550 by nomonstersinme, moonray: Fixed port views functionality to 7.x.
-#960548 by moonray, Vraja | Jacine: Fixed Remove support for template files.
-#906764 by Vraja, DamienMcKenna: Fixed Logic error in handlers.inc skinr_submit_handler().
-#796780 by moonray, sun, ericduran, neochief: Fixed Run Skinr first to avoid problems with other modules during hook_init().
+#956990 by moonray, sun: Changed function and variable names to follow Drupal
+  core.
+#957070 by moonray, sun: Fixed code documentation.
+#957388 by Jacine, sun, Jeff Burnz: Fixed theme_skinr_ui_filters() still uses
+  dl.multiselect markup/styling.
+#948550 by nomonstersinme, moonray: Updated Views integration for 7.x.
+#960548 by moonray, Vraja, Jacine: Removed support for template files.
+#906764 by Vraja, DamienMcKenna: Fixed logic error in skinr_submit_handler().
+#796780 by moonray, sun, ericduran, neochief: Fixed problems with other modules
+  during hook_init().
 #949746 by sun, nomonstersinme: Fixed Skins page broken.
-#947790 by moonray | Jacine: Fixed Port Panels functionality to 7.x.
-#954874 by moonray, sun: Fixed Rip out .info file handling from skinr core module.
-#943064 by moonray | Jacine: Fixed Skinr rules settings fieldset for region editing needs work.
-#947738 by moonray | nomonstersinme: Fixed skinr[skin_name()][features][] = region does not work.
-#945086 by yettyn, ezra-g: Fixed PDOException: %message in skinr_update_7002().
-#908946 by sun: Fixed workaround for core bugs: #320303 & #151452. hook_menu() is invoked for disabled modules that are about to be uninstalled because hook_uninstall() does not respect dependencies.
+#947790 by moonray, Jacine: Updated Panels integration for 7.x.
+#954874 by moonray, sun: Removed .info file handling.
+#943064 by moonray, Jacine: Fixed rules settings fieldset for region editing.
+#947738 by moonray, nomonstersinme: Fixed region handling for skins.
+#945086 by yettyn, ezra-g: Fixed PDOException in skinr_update_7002().
+#908946 by sun: Fixed hook_menu() is invoked for disabled modules.
 #908946 by sun: Fixed module update functions.
 #943008 by moonray: Fixed block_skinr_preprocess_hook_callback() never returning
   alternate block hooks.
