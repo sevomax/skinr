@@ -59,33 +59,34 @@ function skinr_rules() {
  */
 function skinr_rule_add($form, &$form_state) {
   $form = array();
-  $form['rule'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Skinr rule visibility'),
-    '#collapsible' => TRUE,
-    '#weight' => -1,
-  );
+  $form['#tree'] = TRUE;
+
   $form['rule']['title'] = array(
     '#type' => 'textfield',
     '#title' => t('Title'),
-    '#default_value' => !empty($form_state['values']['title']) ? $form_state['values']['title'] : '',
+    '#default_value' => !empty($form_state['values']['rule']['title']) ? $form_state['values']['rule']['title'] : '',
     '#description' => t('Descriptive title for this rule; used by administrators.'),
     '#required' => TRUE,
   );
-
-  $regions = array();
-  foreach (list_themes() as $key => $theme) {
-    $regions += system_region_list($key);
-  }
   $options = array('page' => t('Page'));
-  foreach ($regions as $key => $region) {
-    $options['region__' . $key] = t('Region') . ': ' . $region;
+   foreach (list_themes() as $theme_name => $theme) {
+     if (empty($theme->status)) {
+       continue;
+     }
+     // Create a list options containing visible regions of this theme.
+     $regions = array();
+     foreach (system_region_list($theme_name, REGIONS_VISIBLE) as $region_name => $region) {
+       $regions['region__' . $region_name] = $region;
+     }
+     // Group the list of options by theme.
+     $key = t('@name Regions', array('@name' => $theme->info['name']));
+     $options[$key] = $regions;
   }
   $form['rule']['rule_type'] = array(
     '#type' => 'select',
     '#title' => t('Type'),
-    '#default_value' => !empty($form_state['values']['rule_type']) ? $form_state['values']['rule_type'] : '',
     '#options' => $options,
+    '#default_value' => !empty($form_state['values']['rule']['rule_type']) ? $form_state['values']['rule']['rule_type'] : '',
     '#description' => t('Type of element the rule is applied to.'),
     '#required' => TRUE,
   );
@@ -104,15 +105,15 @@ function skinr_rule_add($form, &$form_state) {
 function skinr_rule_add_submit($form, &$form_state) {
   $rule = new stdClass();
   $rule->rid = NULL;
-  $rule->rule_type = $form_state['values']['rule_type'];
-  $rule->title = $form_state['values']['title'];
+  $rule->rule_type = $form_state['values']['rule']['rule_type'];
+  $rule->title = $form_state['values']['rule']['title'];
   $rule->roles = array();
   $rule->visibility = 0;
   $rule->pages = '';
 
   skinr_rule_save($rule);
   // Set rule id, if we inserted a new rule to allow others to know what rule they're working with.
-  $form_state['values']['rid'] = $rule->rid;
+  $form_state['values']['rule']['rid'] = $rule->rid;
 
   $form_state['redirect'] = 'admin/appearance/skinr/rules/edit/' . $rule->rid;
 }
