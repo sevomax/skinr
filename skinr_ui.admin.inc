@@ -411,47 +411,6 @@ function skinr_ui_multiple_delete_confirm_submit($form, &$form_state) {
 }
 
 /**
- * Form builder for the Skinr settings administration form.
- *
- * @ingroup forms
- */
-function skinr_ui_settings($form, &$form_state) {
-  $form = array();
-
-  $form['overlay'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Overlay'),
-    '#collapsible' => TRUE,
-  );
-  $form['overlay']['skinr_overlay_width'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Window width'),
-    '#default_value' => variable_get('skinr_overlay_width', 600),
-    '#description' => t('The width of the overlay window. Leave this field blank to allow the window to automatically resize itself to a minimal width.'),
-  );
-  $form['overlay']['skinr_overlay_height'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Window height'),
-    '#default_value' => variable_get('skinr_overlay_height', NULL),
-    '#description' => t('The height of the overlay window. Leave this field blank to allow the window to automatically resize itself to the height of your browser.'),
-  );
-
-  return system_settings_form($form);
-}
-
-/**
- * Form validation handler for skinr_ui_settings().
- */
-function skinr_ui_settings_validate(&$form, &$form_state) {
-  if (empty($form_state['values']['skinr_overlay_width'])) {
-    $form_state['values']['skinr_overlay_width'] = NULL;
-  }
-  if (empty($form_state['values']['skinr_overlay_height'])) {
-    $form_state['values']['skinr_overlay_height'] = NULL;
-  }
-}
-
-/**
  * Form builder for the skin info listing form.
  *
  * @ingroup forms

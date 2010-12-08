@@ -6,7 +6,6 @@ package = Skinr
 core = 7.x
 
 dependencies[] = skinr
-;dependencies[] = dialog
 
 files[] = skinr_ui.module
 files[] = skinr_ui.admin.inc

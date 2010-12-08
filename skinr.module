@@ -39,13 +39,13 @@ function skinr_module_implements_alter(&$implementations, $hook) {
  */
 function skinr_init() {
   module_load_include('inc', 'skinr', 'skinr.handlers');
-  skinr_module_include('skinr.inc');
+  skinr_module_load_all_includes();
 }
 
 /**
  * Implements hook_preprocess().
  *
- * @todo Account for drupal's caching being enabled and make it work.
+ * @todo Account for Drupal's caching being enabled and make it work.
  */
 function skinr_preprocess(&$variables, $hook) {
   // Fix for update script.
@@ -57,10 +57,7 @@ function skinr_preprocess(&$variables, $hook) {
   $current_theme = skinr_current_theme();
   $theme_registry = theme_get_registry();
 
-  $original_hook = $hook;
-  if (isset($theme_registry[$hook]['original hook'])) {
-    $original_hook = $theme_registry[$hook]['original hook'];
-  }
+  $original_hook = (isset($theme_registry[$hook]['original hook']) ? $theme_registry[$hook]['original hook'] : $hook);
 
   foreach ($config as $module => $module_settings) {
     if (!empty($module_settings['preprocess'][$original_hook])) {
@@ -81,13 +78,13 @@ function skinr_preprocess(&$variables, $hook) {
         }
         $variables['classes_array'] = array_merge($variables['classes_array'], $extracted['classes']);
 
-        // Add a hook for skinr_ui to plug into: hook_skinr_preprocess_alter().
-        $data = array(
+        // Invoke hook_skinr_preprocess_alter() in all modules.
+        $context = array(
           'hook' => $hook,
           'variables' => &$variables,
           'skin' => &$extracted,
         );
-        drupal_alter('skinr_preprocess', $data);
+        drupal_alter('skinr_preprocess', $context);
       }
     }
   }
@@ -120,7 +117,7 @@ function skinr_skin_extract($module, $sids, $theme = NULL) {
   if (!is_array($sids)) {
     $sids = array($sids);
   }
-  if (is_null($theme)) {
+  if (!isset($theme)) {
     $theme = skinr_current_theme();
   }
 
@@ -202,7 +199,7 @@ function skinr_skin_get_files($skin_options, $type, $theme = NULL) {
           if (!empty($skin_info_option['attached'][$type])) {
             foreach ($skin_info_option['attached'][$type] as $file) {
               $enabled = FALSE;
-              if (in_multiarray($skin_info_option_name, $skin_options)) {
+              if (_skinr_in_multiarray($skin_info_option_name, $skin_options)) {
                 $enabled = TRUE;
               }
 
@@ -246,7 +243,7 @@ function skinr_skin_get_files($skin_options, $type, $theme = NULL) {
  * @return
  *   Returns TRUE if $needle is found in the array, FALSE otherwise.
  */
-function in_multiarray($needle, $haystack) {
+function _skinr_in_multiarray($needle, $haystack) {
   if (is_array($haystack)) {
     // If $needle is in $haystack return TRUE.
     if (in_array($needle, $haystack)) {
@@ -255,7 +252,7 @@ function in_multiarray($needle, $haystack) {
 
     // If $needle isn't in $haystack, then check each item in the array.
     foreach ($haystack as $haybale) {
-      if (is_array($haybale) && in_multiarray($needle, $haybale)) {
+      if (is_array($haybale) && _skinr_in_multiarray($needle, $haybale)) {
         return TRUE;
       }
     }
@@ -424,19 +421,11 @@ function skinr_rule_visible($rid) {
 // Include file helpers.
 
 /**
- * Include files as necessary.
- *
- * @param $file
- *   The file to include. The filename needs to be prefixed with the
- *   implementing module's name (e.g. MODULE.$file), but do not include the
- *   module name prefix in your function call.
+ * Includes $module.skinr.inc files.
  */
-function skinr_module_include($file) {
+function skinr_module_load_all_includes() {
   foreach (skinr_get_module_apis() as $module => $info) {
-    $filepath = DRUPAL_ROOT . "/$info[path]/$module.$file";
-    if (file_exists($filepath)) {
-      require_once $filepath;
-    }
+    module_load_include('skinr.inc', $module);
   }
 }
 
@@ -444,9 +433,9 @@ function skinr_module_include($file) {
  * Get a list of modules that support skinr.
  */
 function skinr_get_module_apis() {
-  $cache = &drupal_static(__FUNCTION__, NULL);
+  $cache = &drupal_static(__FUNCTION__);
 
-  if (is_null($cache)) {
+  if (!isset($cache)) {
     $cache = array();
     foreach (module_implements('skinr_api') as $module) {
       $function = $module . '_skinr_api';
@@ -582,7 +571,7 @@ function skinr_skin_delete_multiple($arguments) {
 function skinr_skin_load($theme = NULL, $module = NULL, $sid = NULL) {
   $skins = &drupal_static(__FUNCTION__, array());
 
-  if (is_null($theme)) {
+  if (!isset($theme)) {
     $theme = skinr_current_theme();
   }
 
@@ -590,11 +579,11 @@ function skinr_skin_load($theme = NULL, $module = NULL, $sid = NULL) {
     if (!isset($skins[$theme])) {
       $skins[$theme] = array();
     }
-    if (!is_null($module) && !isset($skins[$theme][$module])) {
+    if (isset($module) && !isset($skins[$theme][$module])) {
       $skins[$theme][$module] = array();
     }
 
-    if (!is_null($module) && !is_null($sid)) {
+    if (isset($module) && isset($sid)) {
       // Fetch just this sid.
       $result = db_query("SELECT theme, module, sid, settings, skins FROM {skinr} WHERE theme = :theme AND module = :module AND sid = :sid", array(
         ':theme' => $theme,
@@ -602,7 +591,7 @@ function skinr_skin_load($theme = NULL, $module = NULL, $sid = NULL) {
         ':sid' => $sid,
       ));
     }
-    elseif (!is_null($module)) {
+    elseif (isset($module)) {
       // Fetch all settings for this theme and module.
       $result = db_query("SELECT theme, module, sid, settings, skins FROM {skinr} WHERE theme = :theme AND module = :module", array(
         ':theme' => $theme,
@@ -623,13 +612,13 @@ function skinr_skin_load($theme = NULL, $module = NULL, $sid = NULL) {
     }
   }
 
-  if (is_null($sid) && is_null($module)) {
+  if (!isset($sid) && isset($module)) {
     // Return all the skinrs for the theme.
     if (isset($skins[$theme])) {
       return $skins[$theme];
     }
   }
-  elseif(is_null($sid)) {
+  elseif (!isset($sid)) {
     // Return all the skinrs for the module.
     if (isset($skins[$theme][$module])) {
       return $skins[$theme][$module];
@@ -784,8 +773,9 @@ function skinr_plugin_hooks() {
 }
 
 /**
- * Helper function to prepend a path to an array of stylesheets or scripts
- * in a .info file. If the url is absolute (e.g. the url start with 'http://')
+ * Helper function to prepend a path to an array of stylesheet or script filenames.
+ *
+ * If the url is absolute (e.g. the url start with 'http://' or 'https://')
  * the path does not get prepended.
  *
  * @param $files
@@ -797,13 +787,13 @@ function skinr_plugin_hooks() {
 function _skinr_add_path_to_files(&$files, $path) {
   foreach ($files as $key => $file) {
     if (is_array($file)) {
-      if (strpos($file[0], 'http://') === 0) {
+      if (strpos($file[0], 'http://') === 0 || strpos($file[0], 'https://') === 0 ) {
         continue;
       }
       $files[$key][0] = $path . '/' . $file[0];
     }
     else {
-      if (strpos($file, 'http://') === 0) {
+      if (strpos($file, 'http://') === 0 || strpos($file, 'https://') === 0) {
         continue;
       }
       $files[$key] = $path . '/' . $file;
@@ -815,7 +805,7 @@ function _skinr_add_path_to_files(&$files, $path) {
  * Parse a skin_infos array as returned from a skins plugin.
  *
  * This function inserts any missing defaults and updates the stylesheet and
- * script paths to be relative to drupal's root.
+ * script paths to be relative to Drupal's root.
  *
  * @param $skin_infos
  *   A skins array as returned from a skins plugin.
@@ -890,7 +880,6 @@ function skinr_get_skin_info() {
     // Load skins from hook_skinr_skins().
     $hooks = skinr_plugin_hooks();
     foreach ($hooks as $hook => $source) {
-      // @todo Update the hook name once we settle on one.
       $function = $hook . '_skinr_skin_info';
       $result = $function();
       if (isset($result)) {
@@ -929,7 +918,6 @@ function skinr_get_group_info() {
     // Load skins from hook_skinr_groups().
     $hooks = skinr_plugin_hooks();
     foreach ($hooks as $hook => $source) {
-      // @todo Update the hook name once we settle on one.
       $function = $hook . '_skinr_group_info';
       $result = $function();
       if (isset($result)) {
@@ -963,7 +951,7 @@ function skinr_get_group_info() {
 function skinr_get_config_info() {
   $config = &drupal_static(__FUNCTION__);
 
-  if (is_null($config)) {
+  if (!isset($config)) {
     $config = module_invoke_all('skinr_config_info');
     drupal_alter('skinr_config_info', $config);
   }

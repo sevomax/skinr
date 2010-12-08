@@ -127,7 +127,6 @@ function skinr_rule_add_submit($form, &$form_state) {
  * @ingroup forms
  */
 function skinr_rule_edit($form, &$form_state, $rid = NULL) {
-  $form = array();
   $form['rule'] = array(
     '#type' => 'fieldset',
     '#title' => t('Skinr rule visibility'),
@@ -144,7 +143,7 @@ function skinr_rule_edit($form, &$form_state, $rid = NULL) {
       'pages' => $form_state['values']['pages'],
     );
   }
-  elseif(!is_null($rid) && $rule = skinr_rule_load($rid)) {
+  elseif (isset($rid) && $rule = skinr_rule_load($rid)) {
     $rule = (array) $rule;
     $form['rule']['rid'] = array(
       '#type' => 'value',

@@ -149,21 +149,8 @@ function skinr_ui_menu() {
     'file' => 'skinr_ui.admin.inc',
   );
 
-  // Settings.
-  $items['admin/appearance/skinr/settings'] = array(
-    'title' => 'Settings',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('skinr_ui_settings'),
-    'type' => MENU_LOCAL_TASK,
-    'access arguments' => array('administer skinr'),
-    'parent' => 'admin/appearance/skinr',
-    'weight' => 4,
-    'description' => t('Configure Skinr settings.'),
-    'file' => 'skinr_ui.admin.inc',
-  );
-
   // Edit Skinr settings.
-  $items['admin/appearance/skinr/edit/%dialog_js/%/%'] = array(
+  $items['admin/appearance/skinr/edit/%skinr_js/%/%'] = array(
     'title' => 'Edit skin',
     'title callback' => 'skinr_ui_edit_title',
     'title arguments' => array(5, 6),
@@ -173,7 +160,7 @@ function skinr_ui_menu() {
     'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
     'access arguments' => array('administer skinr'),
   );
-  $items['admin/appearance/skinr/edit/%dialog_js/%/%/configure'] = array(
+  $items['admin/appearance/skinr/edit/%skinr_js/%/%/configure'] = array(
     'title' => 'Edit skin',
     'title callback' => 'skinr_ui_edit_contextual_title',
     'title arguments' => array(5, 6),
@@ -203,13 +190,14 @@ function skinr_ui_menu() {
   return $items;
 }
 
-if (!function_exists('dialog_js_load')) {
-  function dialog_js_load($js = 'nojs') {
-    if ($js == 'ajax') {
-      return TRUE;
-    }
-    return 0;
+/**
+ * Helper function to determine if ajax is used to call a function.
+ */
+function skinr_js_load($js = 'nojs') {
+  if ($js == 'ajax') {
+    return TRUE;
   }
+  return 0;
 }
 
 /**
@@ -316,8 +304,6 @@ function skinr_ui_edit_contextual_title($module, $sid) {
  *   index handler. Used by the javascript UI to update all elements involved.
  */
 function skinr_ui_edit($js = FALSE, $module, $sid, $sids = NULL) {
-  global $gskinr;
-
   if ($js) {
     // Do additional ajax related stuff.
   }
