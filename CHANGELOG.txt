@@ -2,6 +2,7 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#956994 by jacine: Adding a Test skin module.
 #956990 by moonray, sun: Round 2 of clean up in #956990.
 #942950 by moonray, Jacine, sun: Fixed Rule creation form is broken and
   confusing.

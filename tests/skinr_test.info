@@ -1,0 +1,6 @@
+name = Skinr Test Skin
+description = A test module used for testing skins with Simpletest.
+package = Testing
+core = 7.x
+hidden = TRUE
+dependencies[] = skinr
