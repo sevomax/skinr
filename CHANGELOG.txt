@@ -2,6 +2,7 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#995080 by moonray: Fixed admin/appearance/skinr/edit/%skinr_js()/%/% has wrong permission.
 #948550 by moonray: Fixed a few views_object_cache() calls to use
   ctools_object_cache_get().
 #956990 by moonray: Fixing module_load_all_includes() which was broken by a
