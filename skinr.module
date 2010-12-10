@@ -425,7 +425,12 @@ function skinr_rule_visible($rid) {
  */
 function skinr_module_load_all_includes() {
   foreach (skinr_get_module_apis() as $module => $info) {
-    module_load_include('skinr.inc', $module);
+    if (function_exists('drupal_get_path')) {
+      $file = DRUPAL_ROOT . "/$info[path]/$module.skinr.inc";
+      if (is_file($file)) {
+        require_once $file;
+      }
+    }
   }
 }
 
