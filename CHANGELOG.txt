@@ -2,6 +2,8 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#948550 by moonray: Fixed a few views_object_cache() calls to use
+  ctools_object_cache_get().
 #956990 by moonray: Fixing module_load_all_includes() which was broken by a
   previous commit.
 #956994 by jacine: Adding a Test skin module.

@@ -234,7 +234,7 @@ function views_skinr_submit_handler_display(&$form, $form_state, $module, $form_
         }
       }
       $skinrs[$theme_name][$sid] = $value;
-      views_object_cache_set('skinr', $form_state['view']->name, $skinrs);
+      ctools_object_cache_set('skinr', $form_state['view']->name, $skinrs);
     }
   }
 }
@@ -257,14 +257,14 @@ function views_skinr_submit_handler_view(&$form, $form_state, $module, $form_set
             skinr_skin_save($skinr);
           }
         }
-        views_object_cache_clear('skinr', $form_state['view']->name);
+        ctools_object_cache_clear('skinr', $form_state['view']->name);
       }
       break;
     case t('Cancel'):
       // Remove our data from views cache
       ctools_include('object-cache');
 
-      views_object_cache_clear('skinr', $form_state['view']->name);
+      ctools_object_cache_clear('skinr', $form_state['view']->name);
       break;
   }
 }
