@@ -10,7 +10,8 @@
  * Tests basic module installation.
  */
 class SkinrInstallationTestCase extends DrupalWebTestCase {
-  protected $profile = 'testing';
+  // Don't use the testing profile until http://drupal.org/node/985578 is fixed.
+  //protected $profile = 'testing';
 
   public static function getInfo() {
     return array(
@@ -60,9 +61,15 @@ class SkinrInstallationTestCase extends DrupalWebTestCase {
       'modules[Skinr][skinr][enable]' => FALSE,
     );
     $this->drupalPost(NULL, $edit, t('Save configuration'));
+    // Uninstall Skinr UI first.
+    $edit = array(
+      'uninstall[skinr_ui]' => TRUE,
+    );
+    $this->drupalPost('admin/modules/uninstall', $edit, t('Uninstall'));
+    $this->drupalPost(NULL, array(), t('Uninstall'));
+    // Now uninstall Skinr.
     $edit = array(
       'uninstall[skinr]' => TRUE,
-      'uninstall[skinr_ui]' => TRUE,
     );
     $this->drupalPost('admin/modules/uninstall', $edit, t('Uninstall'));
     $this->drupalPost(NULL, array(), t('Uninstall'));
