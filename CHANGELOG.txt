@@ -2,6 +2,7 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#956990 by sun: Renaming docs/docs.php to skinr.api.php.
 #977110 by Jacine: Fixed Create the default group implementation.
 #956990 by coltrane, Removed function_exists() call from
   skinr_module_load_all_includes().
