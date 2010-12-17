@@ -10,8 +10,7 @@
  * Tests basic module installation.
  */
 class SkinrInstallationTestCase extends DrupalWebTestCase {
-  // Don't use the testing profile until http://drupal.org/node/985578 is fixed.
-  //protected $profile = 'testing';
+  protected $profile = 'testing';
 
   public static function getInfo() {
     return array(
