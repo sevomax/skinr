@@ -2,6 +2,8 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#995794 by coltrane, pillarsdotnet: Fixed Prevent 'invalid argument for
+  foreach()" error.
 #999124 by sun, coltrane: Remove workaround due to fix in core issue #985578.
 #999124 by coltrane: Fixed installation simpletest.
 #995080 by moonray: Fixed admin/appearance/skinr/edit/%skinr_js()/%/% has wrong permission.

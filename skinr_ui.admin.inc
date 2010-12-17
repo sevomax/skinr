@@ -260,33 +260,36 @@ function skinr_ui_admin_skins() {
       $skins = array($type => skinr_skin_load($theme->name, $type));
     }
 
-    foreach ($skins as $module => $elements) {
-      foreach ($elements as $sid => $skin) {
-        $operations = array(
-          'edit' => array(
-            'title' => t('edit'),
-            'href' => 'admin/appearance/skinr/edit/nojs/' . $module . '/' . $sid,
-            'query' => $destination,
-          ),
-          'delete' => array(
-            'title' => t('delete'),
-            'href' => 'admin/appearance/skinr/delete/'. $theme->name .'/'. $module .'/'. $sid,
-            'query' => $destination,
-          ),
-        );
-        $options[$theme->name . '__' . $module . '__' . $sid] = array(
-          'theme' => $theme->info['name'],
-          'type' => $module,
-          'sid' => $sid,
-          'operations' => array(
-            'data' => array(
-              '#theme' => 'links__skinr_operations',
-              '#links' => $operations,
-              '#attributes' => array('class' => array('links', 'inline')),
+    // skinr_skin_load() could return NULL for this theme.
+    if (!empty($skins)) {
+      foreach ($skins as $module => $elements) {
+        foreach ($elements as $sid => $skin) {
+          $operations = array(
+            'edit' => array(
+              'title' => t('edit'),
+              'href' => 'admin/appearance/skinr/edit/nojs/' . $module . '/' . $sid,
+              'query' => $destination,
             ),
-          ),
-        );
-        $sorts[] = strip_tags($options[$theme->name . '__' . $module . '__' . $sid][$sortby]);
+            'delete' => array(
+              'title' => t('delete'),
+              'href' => 'admin/appearance/skinr/delete/'. $theme->name .'/'. $module .'/'. $sid,
+              'query' => $destination,
+            ),
+          );
+          $options[$theme->name . '__' . $module . '__' . $sid] = array(
+            'theme' => $theme->info['name'],
+            'type' => $module,
+            'sid' => $sid,
+            'operations' => array(
+              'data' => array(
+                '#theme' => 'links__skinr_operations',
+                '#links' => $operations,
+                '#attributes' => array('class' => array('links', 'inline')),
+              ),
+            ),
+          );
+          $sorts[] = strip_tags($options[$theme->name . '__' . $module . '__' . $sid][$sortby]);
+        }
       }
     }
   }
