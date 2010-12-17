@@ -2,6 +2,8 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#956990 by coltrane, Removed function_exists() call from
+  skinr_module_load_all_includes().
 #995794 by coltrane, pillarsdotnet: Fixed Prevent 'invalid argument for
   foreach()" error.
 #999124 by sun, coltrane: Remove workaround due to fix in core issue #985578.
