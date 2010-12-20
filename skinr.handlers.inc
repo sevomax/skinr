@@ -22,10 +22,10 @@
  */
 function skinr_access_handler($op, &$form, $form_state) {
   switch ($op) {
-    case 'access skinr':
-      return user_access('access skinr') || user_access('administer skinr');
-    case 'access skinr classes':
-      return user_access('access skinr classes') || user_access('administer skinr');
+    case 'edit skin settings':
+      return user_access('edit skin settings') || user_access('administer skinr');
+    case 'edit advanced skin settings':
+      return user_access('edit advanced skin settings') || user_access('administer skinr');
   }
 }
 

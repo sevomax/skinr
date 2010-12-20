@@ -89,8 +89,8 @@ function panels_skinr_form_index_handler($op, &$form, $form_state) {
  *
  * @param $op
  *   What kind of action is being performed. Possible values:
- *   - 'access skinr': access to edit Skinr's settings.
- *   - 'access skinr classes': access to edit Skinr's additional classes.
+ *   - edit skin settings
+ *   - edit advanced skin settings
  * @param &$form
  *   Passes in the $form parameter from hook_form_alter().
  * @param $form_state

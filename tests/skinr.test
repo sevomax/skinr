@@ -42,8 +42,8 @@ class SkinrInstallationTestCase extends DrupalWebTestCase {
     // Grant permissions.
     $edit = array(
       DRUPAL_AUTHENTICATED_RID . '[administer skinr]' => TRUE,
-      DRUPAL_AUTHENTICATED_RID . '[access skinr]' => TRUE,
-      DRUPAL_AUTHENTICATED_RID . '[access skinr classes]' => TRUE,
+      DRUPAL_AUTHENTICATED_RID . '[edit skin settings]' => TRUE,
+      DRUPAL_AUTHENTICATED_RID . '[edit advanced skin settings]' => TRUE,
     );
     $this->drupalPost('admin/people/permissions', $edit, t('Save permissions'));
 

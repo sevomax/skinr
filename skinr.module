@@ -994,8 +994,8 @@ function skinr_config_info_default() {
  *   - 'preprocess_hook_callback':
  *   - 'submit_handler':
  * @param $op
- *   For 'access_handler' the possible values are 'access skinr'
- *     and 'access skinr classes'.
+ *   For 'access_handler' the possible values are 'edit skin settings'
+ *     and 'edit advanced skin settings'.
  *   For 'contextual_links' an empty string is passed.
  *   For 'data_handler' the possible values are 'form' and 'submit'.
  *   For 'form_index_handler' the possible values are 'form' and 'submit'.
