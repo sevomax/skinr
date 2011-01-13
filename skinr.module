@@ -7,6 +7,11 @@
  */
 
 /**
+ * The Skinr API version.
+ */
+define('SKINR_VERSION', 2);
+
+/**
  * Implements hook_help().
  */
 function skinr_help($path, $arg) {
@@ -23,6 +28,19 @@ function skinr_help($path, $arg) {
 }
 
 /**
+ * Implements hook_hook_info().
+ */
+function skinr_hook_info() {
+  $hooks = array(
+    'skinr_api_2',
+  );
+  $hooks = array_fill_keys($hooks, array(
+    'group' => 'skinr',
+  ));
+  return $hooks;
+}
+
+/**
  * Implements hook_module_implements_alter().
  */
 function skinr_module_implements_alter(&$implementations, $hook) {
@@ -36,10 +54,12 @@ function skinr_module_implements_alter(&$implementations, $hook) {
 
 /**
  * Implements hook_init().
+ *
+ * @todo Kill me. Entirely.
  */
 function skinr_init() {
   module_load_include('inc', 'skinr', 'skinr.handlers');
-  skinr_module_load_all_includes();
+  skinr_load_includes();
 }
 
 /**
@@ -64,8 +84,10 @@ function skinr_preprocess(&$variables, $hook) {
       $preprocess_settings = $module_settings['preprocess'][$original_hook];
       $sids = skinr_handler('preprocess_index_handler', 'preprocess', $preprocess_settings['index_handler'], $variables);
 
+      // @todo Kill skinr_skin_extract(), and only store what has been
+      //   configured, enabled, and should be actively applied, in order to use
+      //   drupal_process_attached().
       if ($extracted = skinr_skin_extract($module, $sids, $current_theme)) {
-        // @todo How can this be done better with drupal_process_attached()?
         foreach ($extracted['css'] as $file) {
           if ($file['enabled']) {
             drupal_add_css($file['path'], $file['file_options']);
@@ -417,42 +439,141 @@ function skinr_rule_visible($rid) {
   return FALSE;
 }
 
-// ------------------------------------------------------------------
-// Include file helpers.
+/**
+ * Returns a list of extensions that implement this API version of Skinr.
+ *
+ * @return
+ *   An associative array whose keys are system names of extensions and whose
+ *   values are again associative arrays containing:
+ *   - type: Either 'module' or 'theme'.
+ *   - name: The system name of the extension.
+ *   - path: The path to the extension.
+ *   - directory: (optional) The sub-directory holding Skinr plugin files.
+ *   - ...: Any other properties defined by the module or theme.
+ */
+function skinr_implements() {
+  $cache = &drupal_static(__FUNCTION__);
+
+  if (!isset($cache)) {
+    $cache = array();
+    // Collect hook_skinr_api_VERSION() module implementations. This will also
+    // auto-load $module.skinr.inc files, which may contain skin/group hook
+    // implementations (when not using the plugin system).
+    foreach (module_implements('skinr_api_' . SKINR_VERSION) as $module) {
+      // Ensure that $module and the extension type is registered.
+      $cache[$module] = array(
+        'type' => 'module',
+        'name' => $module,
+      );
+      // Check whether the hook returns any information.
+      $function = $module . '_skinr_api_' . SKINR_VERSION;
+      $info = $function();
+      if (isset($info) && is_array($info)) {
+        $cache[$module] += $info;
+      }
+      // If the module specified a custom path, check whether it contains a
+      // $module.skinr.inc file and auto-load it. module_implements() only
+      // auto-loads $module.skinr.inc in a module's root folder.
+      if (isset($cache[$module]['path'])) {
+        $file = DRUPAL_ROOT . '/' . $cache[$module]['path'] . '/' . $module . '.skinr.inc';
+        if (file_exists($file)) {
+          require_once $file;
+        }
+      }
+      // Populate defaults.
+      $cache[$module] += array(
+        'path' => drupal_get_path('module', $module),
+        'directory' => NULL,
+      );
+    }
+    // Collect the equivalent of hook_skinr_api_VERSION() implementations in
+    // themes. The theme system only initializes one theme (and optionally its
+    // base themes) for the current request, and the phptemplate engine only
+    // loads template.php during theme initialization. Furthermore, template.php
+    // is a custom concept of the phptemplate engine and does not exist for
+    // other theme engines. Since we are interested in all existing
+    // implementations of all enabled themes, the equivalent of the module hook
+    // is a theme .info file property 'skinr' that has the sub-keys 'api' and
+    // optionally 'directory' defined.
+    foreach (list_themes() as $name => $theme) {
+      if (!empty($theme->status) && isset($theme->info['skinr']['api']) && $theme->info['skinr']['api'] == SKINR_VERSION) {
+        // Ensure that the theme name and the extension type is registered.
+        $cache[$name] = array(
+          'type' => 'theme',
+          'name' => $name,
+        );
+        // Add any additional information that has been registered.
+        $cache[$name] += $theme->info['skinr'];
+        // Populate defaults.
+        $cache[$name] += array(
+          'path' => drupal_get_path('theme', $name),
+          // Since themes cannot do anything else than registering skins and
+          // groups, we default to the sub-directory 'skins'.
+          'directory' => 'skins',
+        );
+        // Lastly, for API consistency with modules, check whether the theme
+        // contains a $theme.skinr.inc file and auto-load it, if any.
+        $file = DRUPAL_ROOT . '/' . $cache[$name]['path'] . '/' . $name . '.skinr.inc';
+        if (file_exists($file)) {
+          require_once $file;
+        }
+      }
+    }
+  }
+
+  return $cache;
+}
 
 /**
- * Includes $module.skinr.inc files.
+ * Includes $extension.skinr.inc files of extensions compatible with this version of Skinr.
+ *
+ * @todo Shoot me. Twice.
  */
-function skinr_module_load_all_includes() {
-  foreach (skinr_get_module_apis() as $module => $info) {
-    $file = DRUPAL_ROOT . "/$info[path]/$module.skinr.inc";
-    if (is_file($file)) {
+function skinr_load_includes() {
+  foreach (skinr_implements() as $extension) {
+    $file = DRUPAL_ROOT . '/' . $extension['path'] . '/' . $extension['name'] . '.skinr.inc';
+    if (file_exists($file)) {
       require_once $file;
     }
   }
 }
 
 /**
- * Get a list of modules that support skinr.
+ * Includes Skinr plugin files for an extension, if any.
+ *
+ * @param $extension
+ *   The API information for an extension, as returned by skinr_implements().
  */
-function skinr_get_module_apis() {
-  $cache = &drupal_static(__FUNCTION__);
+function skinr_load_plugins($extension) {
+  static $loaded = array();
 
-  if (!isset($cache)) {
-    $cache = array();
-    foreach (module_implements('skinr_api') as $module) {
-      $function = $module . '_skinr_api';
-      $info = $function();
-      if (isset($info['api']) && $info['api'] == 1.000) {
-        if (!isset($info['path'])) {
-          $info['path'] = drupal_get_path('module', $module);
-        }
-        $cache[$module] = $info;
-      }
-    }
+  // If plugins have already been loaded for this extension, return them.
+  if (isset($loaded[$extension['name']])) {
+    return $loaded[$extension['name']];
   }
+  $loaded[$extension['name']] = array();
 
-  return $cache;
+  // If the extension defines a plugin directory, scan its plugins.
+  if (isset($extension['directory'])) {
+    $dir = DRUPAL_ROOT . '/' . $extension['path'] . '/' . $extension['directory'];
+    $mask = '@^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.inc$@';
+    $loaded[$extension['name']] = file_scan_directory($dir, $mask, array(
+      'key' => 'name',
+      'recurse' => FALSE,
+      'callback' => 'skinr_include_once',
+    ));
+  }
+  return $loaded[$extension['name']];
+}
+
+/**
+ * file_scan_directory() callback wrapper around include_once.
+ *
+ * include_once is a PHP construct, not a function, so it cannot be invoked
+ * directly as 'callback' in file_scan_directory().
+ */
+function skinr_include_once($file) {
+  include_once $file;
 }
 
 // -----------------------------------------------------------------------
@@ -702,24 +823,12 @@ function skinr_current_theme($exclude_admin_theme = FALSE) {
 }
 
 /**
- * Prepare defaults for groups.
- *
- * @return
- *   An array of default group settings.
- */
-function skinr_group_info_default() {
-  return array(
-    'title' => '',
-    'description' => '',
-    'weight' => NULL,
-  );
-}
-
-/**
  * Prepare defaults for skins.
  *
  * @return
  *   An array of default skin settings.
+ *
+ * @todo Merge into skinr_get_skin_info() and remove this function.
  */
 function skinr_skin_info_default() {
   return array(
@@ -755,24 +864,6 @@ function skinr_skin_info_status_default($default_status = 0) {
     $status[$theme_name] = $default_status;
   }
   return $status;
-}
-
-/**
- * Get a list of plugin hooks.
- *
- * @return
- *   An array of hook details keyed by hook name. The hook details contain the
- *   following keys:
- *   - 'type': Available options are 'module' or 'theme'.
- *   - 'name': The name of the owner module or theme of this plugin.
- *   - 'plugin': The name of the skins plugin.
- *   - 'path': This plugin's path.
- */
-function skinr_plugin_hooks() {
-  // @todo Load the include files and get an array of hooks; we need to
-  //   know which module and which plugin comprises the hook.
-  $hooks = array();
-  return $hooks;
 }
 
 /**
@@ -813,11 +904,10 @@ function _skinr_add_path_to_files(&$files, $path) {
  * @param $skin_infos
  *   A skins array as returned from a skins plugin.
  * @param $source
- *   An array with the following keys:
- *   - 'type': Available options are 'module' or 'theme'.
- *   - 'name': The name of the owner module or theme of this plugin.
- *   - 'plugin': The name of the skins plugin.
- *   - 'path': This plugin's path.
+ *   An associative array containing information about the source of the skin.
+ *   See skinr_implements() for details.
+ *
+ * @todo Merge into skinr_get_skin_info() and remove this function.
  */
 function skinr_skin_info_process(&$skin_infos, $source) {
   foreach ($skin_infos as $skin_name => $skin_info) {
@@ -832,9 +922,6 @@ function skinr_skin_info_process(&$skin_infos, $source) {
 
     // Merge in default statuses for all themes.
     $skin_infos[$skin_name]['status'] = array_merge(skinr_skin_info_status_default($skin_infos[$skin_name]['default_status']), $skin_infos[$skin_name]['status']);
-
-    // @todo Apply overridden statuses. This will need to be loaded from
-    //   database.
 
     // Add path to stylesheets.
     if (isset($skin_infos[$skin_name]['attached']['css'])) {
@@ -867,82 +954,111 @@ function skinr_skin_info_process(&$skin_infos, $source) {
 }
 
 /**
- * Retrieves a list of all available skins.
+ * Retrieves all skins registered by modules and themes.
  *
  * @return
- *    An array of skins.
+ *   An array of skins.
  */
 function skinr_get_skin_info() {
-  $skin_infos = &drupal_static(__FUNCTION__);
+  $skin_info = &drupal_static(__FUNCTION__);
 
-  if (!isset($skin_infos)) {
-    // Set skins to an array to avoid errors down the line if no skins
-    // are found.
-    $skin_infos = array();
+  if (!isset($skin_info)) {
+    if ($cached = cache_get('skinr_skin_info')) {
+      $skin_info = $cached->data;
+      return $skin_info;
+    }
+    $skin_info = array();
 
-    // Load skins from hook_skinr_skins().
-    $hooks = skinr_plugin_hooks();
-    foreach ($hooks as $hook => $source) {
-      $function = $hook . '_skinr_skin_info';
-      $result = $function();
-      if (isset($result)) {
-        if (!is_array($result)) {
-          $result = array($result);
+    foreach (skinr_implements() as $name => $extension) {
+      $hooks = array(
+        "{$name}_skinr_skin_info" => $extension,
+      );
+      // Load the extension's plugins, if any.
+      if ($files = skinr_load_plugins($extension)) {
+        // The source path for a plugin is the directory it is contained in.
+        $dir = $extension['path'] . '/' . $extension['directory'];
+        foreach ($files as $plugin => $file) {
+          $hooks["{$name}_skinr_skin_{$plugin}_info"] = array(
+            'path' => $dir,
+          ) + $extension;
         }
+      }
+      foreach ($hooks as $function => $source) {
+        if (function_exists($function)) {
+          $extension_info = $function();
+          if (isset($extension_info) && is_array($extension_info)) {
+            // Prepare the skin information.
+            skinr_skin_info_process($extension_info, $source);
 
-        // Make any programatic changes.
-        skinr_skin_info_process($result, $source);
-
-        $skin_infos = array_merge_recursive($skin_infos, $result);
+            $skin_info += $extension_info;
+          }
+        }
       }
     }
 
-    // Allow modules to alter skin infos through hook_skinr_skin_info_alter().
-    drupal_alter('skinr_skin_info', $skin_infos);
+    // Allow modules to alter registered skin information.
+    drupal_alter('skinr_skin_info', $skin_info);
+
+    cache_set('skinr_skin_info', $skin_info);
   }
 
-  return $skin_infos;
+  return $skin_info;
 }
 
 /**
- * Retrieves a list of all available groups.
+ * Retrieves all skin groups registered by modules and themes.
  *
  * @return
- *    An array of groups.
+ *   An array of groups.
  */
 function skinr_get_group_info() {
-  $group_infos = &drupal_static(__FUNCTION__);
+  $group_info = &drupal_static(__FUNCTION__);
 
-  if (!isset($group_infos)) {
-    // Set groups to an array to avoid errors down the line if no groups
-    // are found.
-    $group_infos = array();
+  if (!isset($group_info)) {
+    if ($cached = cache_get('skinr_group_info')) {
+      $group_info = $cached->data;
+      return $group_info;
+    }
+    $group_info = array();
 
-    // Load skins from hook_skinr_groups().
-    $hooks = skinr_plugin_hooks();
-    foreach ($hooks as $hook => $source) {
-      $function = $hook . '_skinr_group_info';
-      $result = $function();
-      if (isset($result)) {
-        if (!is_array($result)) {
-          $result = array($result);
+    foreach (skinr_implements() as $name => $extension) {
+      $hooks = array(
+        "{$name}_skinr_group_info" => $extension,
+      );
+      // Load the extension's plugins, if any.
+      if ($files = skinr_load_plugins($extension)) {
+        // The source path for a plugin is the directory it is contained in.
+        $dir = $extension['path'] . '/' . $extension['directory'];
+        foreach ($files as $plugin => $file) {
+          $hooks["{$name}_skinr_group_{$plugin}_info"] = array(
+            'path' => $dir,
+          ) + $extension;
         }
+      }
+      foreach ($hooks as $function => $source) {
+        if (function_exists($function)) {
+          $extension_info = $function();
+          if (isset($extension_info) && is_array($extension_info)) {
+            // Prepare the skin group information.
+            $extension_info += array(
+              'title' => '',
+              'description' => '',
+              'weight' => 0,
+            );
 
-        // Make any programatic changes.
-        // Merge in defaults.
-        foreach ($result as $group_name => $group_info) {
-          $result[$group_name] = array_merge(skinr_group_info_default(), $group_info);
+            $group_info += $extension_info;
+          }
         }
-
-        $group_infos = array_merge_recursive($group_infos, $result);
       }
     }
 
     // Allow modules to alter groups through hook_skinr_group_info_alter().
-    drupal_alter('skinr_group_info', $group_infos);
+    drupal_alter('skinr_group_info', $group_info);
+
+    cache_set('skinr_group_info', $group_info);
   }
 
-  return $group_infos;
+  return $group_info;
 }
 
 /**
@@ -952,18 +1068,38 @@ function skinr_get_group_info() {
  *   An array of all configuration data.
  */
 function skinr_get_config_info() {
-  $config = &drupal_static(__FUNCTION__);
+  $config_info = &drupal_static(__FUNCTION__);
 
   if (!isset($config)) {
-    $config = module_invoke_all('skinr_config_info');
-    drupal_alter('skinr_config_info', $config);
+    if ($cached = cache_get('skinr_config_info')) {
+      $config_info = $cached->data;
+      return $config_info;
+    }
+    $config_info = array();
+
+    foreach (skinr_implements() as $name => $extension) {
+      $function = "{$name}_skinr_config_info";
+      if (function_exists($function)) {
+        $extension_info = $function();
+        if (isset($extension_info) && is_array($extension_info)) {
+          $config_info = array_merge_recursive($config_info, $extension_info);
+        }
+      }
+    }
+
+    // Allow modules to alter config info via hook_skinr_config_info_alter().
+    drupal_alter('skinr_config_info', $config_info);
+
+    cache_set('skinr_config_info', $config_info);
   }
 
-  return $config;
+  return $config_info;
 }
 
 /**
  * Prepare default configuration data for modules.
+ *
+ * @todo Search and destroy.
  */
 function skinr_config_info_default() {
   return array(

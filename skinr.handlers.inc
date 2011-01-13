@@ -140,26 +140,37 @@ function skinr_submit_handler(&$form, $form_state, $module, $form_settings) {
   }
 }
 
-// Declare API compatibility on behalf of core modules:
+/**
+ * Implements hook_skinr_api_VERSION().
+ */
+function skinr_skinr_api_2() {
+}
 
 /**
- * Implements hook_skinr_api().
- *
- * This one is used as the base to reduce errors when updating.
+ * Helper function for built-in integration code.
  */
-function skinr_skinr_api() {
+function skinr_skinr_api_modules() {
   return array(
-    'api' => 1,
     'path' => drupal_get_path('module', 'skinr') . '/modules',
   );
 }
 
-function block_skinr_api() { return skinr_skinr_api(); }
+function block_skinr_api_2() {
+  return skinr_skinr_api_modules();
+}
 
-function comment_skinr_api() { return skinr_skinr_api(); }
+function comment_skinr_api_2() {
+  return skinr_skinr_api_modules();
+}
 
-function node_skinr_api() { return skinr_skinr_api(); }
+function node_skinr_api_2() {
+  return skinr_skinr_api_modules();
+}
 
-function panels_skinr_api() { return skinr_skinr_api(); }
+function panels_skinr_api_2() {
+  return skinr_skinr_api_modules();
+}
 
-function views_skinr_api() { return skinr_skinr_api(); }
+function views_skinr_api_2() {
+  return skinr_skinr_api_modules();
+}

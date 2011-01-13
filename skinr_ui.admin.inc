@@ -519,7 +519,7 @@ function _skinr_ui_admin_skin_infos_build_row($skin, $extra) {
     '#markup' => $info['version'],
   );
   $form['source plugin'] = array(
-    '#markup' => $skin['source']['plugin'],
+    '#markup' => '', //$skin['source']['plugin'],
   );
 
   $theme_hooks = array();
@@ -704,7 +704,7 @@ function skinr_ui_admin_skin_infos_settings($form, $form_state, $skinset_name) {
 
   $skin_infos = skinr_get_skin_info();
   if (!empty($skin_infos[$skinset_name])) {
-    $skin_info = $skin_infos[$skinset_name];
+    $skin_info = $skin_infos;
 
     $themes = list_themes();
     ksort($themes);
@@ -712,7 +712,7 @@ function skinr_ui_admin_skin_infos_settings($form, $form_state, $skinset_name) {
     $form['skins'] = array('#tree' => TRUE);
 
     // Iterate through each of the skinsets.
-    foreach ($skin_info->skins as $name => $skin) {
+    foreach ($skin_info as $name => $skin) {
       foreach ($themes as $theme) {
         if (!$theme->status) {
           continue;
@@ -739,10 +739,7 @@ function skinr_ui_admin_skin_infos_settings($form, $form_state, $skinset_name) {
       );
     }
   }
-  $form['skinset'] = array(
-    '#type' => 'value',
-    '#value' => $skinset_name,
-  );
+  $form_state['skin_info'] = $skin_infos;
 
   $form['actions'] = array('#type' => 'actions');
   $form['actions']['submit'] = array(
@@ -857,7 +854,7 @@ function skinr_ui_admin_skin_infos_settings_submit($form, &$form_state) {
 
     foreach ($statuses as $name => $status) {
       $skinr_skin = new StdClass();
-      $skinr_skin->name = $form_state['values']['skinset'];
+      $skinr_skin->name = $form_state['skin_info'][$name]['source']['name'];
       $skinr_skin->type = 'skinset';
       $skinr_skin->skin = $name;
       $skinr_skin->status = $status;

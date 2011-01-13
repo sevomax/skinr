@@ -2,6 +2,8 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#956994 by sun, moonray, coltrane: Fixed Write load and parse code for Skinr
+  include files in PHP format.
 #956932 and #956932 by Jacine, moonray, sun: Added new API documentation.
 #977110 by moonray: Fixed typos in the default group implementation.
 #995080 by Jacine: Fixed Permissions are confusing.

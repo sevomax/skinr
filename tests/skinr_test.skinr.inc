@@ -19,6 +19,7 @@ function skinr_test_skinr_skin_info() {
     'type' => 'select',
     'group' => 'typography',
     'theme hooks' => array('block', 'region'),
+    'default_status' => 1,
     'attached' => array(
       'css' => array('skinr_test.css'),
     ),
