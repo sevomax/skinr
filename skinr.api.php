@@ -130,10 +130,9 @@ function hook_skinr_api_VERSION() {
  * apply, which files it should load, whether or not it should be disabled by
  * default and which theme hook(s) it was designed to work with.
  *
- * Each skin name must be unique. It is recommended to prefix the name of each
- * skin with the name of the theme or module name implementing it, followed by
- * the name of the skin. Note that you cannot define 2 skins with the same
- * the same name, even if they are in different plugins.
+ * Each skin name must be unique. Skins cannot have the same name even if they
+ * are located in different plugins. It is recommended to prefix the name of
+ * each skin with the name of the theme or module implementing it.
  *
  * Skin settings:
  * - title (required): Title of the skin form element.
@@ -142,8 +141,8 @@ function hook_skinr_api_VERSION() {
  *   provided group labeled "General."
  * - type (optional): The type of form element. Allowed values:
  *   - checkboxes (default): Useful when single or multiple options can be
- *     chosen.
- *     Does not need to be set manually, as Skinr will apply this by default.
+ *     chosen. This type does not need to be set manually. Skinr will apply
+ *     it by default.
  *   - select: Useful when a single option can be chosen, but many exist.
  *   - radios: Useful when a single option can be chosen and only a few options
  *     exist.
@@ -183,19 +182,18 @@ function hook_skinr_api_VERSION() {
  *   for the user to choose from when applying skins. Each option key should be
  *   a machine name describing the option. An option should including the
  *   following keys:
- *   - label (required): The option label.
+ *   - title (required): The option label.
  *   - class (required): An array containing one or more classes the skin
  *     should apply. All classes should be entered as an array: For example:
  *     'class' => array('class-b', 'class-b')
  *   - attached (optional): Same syntax as above, but applies to a specific
  *     option only.
- * - theme hooks (optional): An array containing certain allowed hooks, which
- *   allow you to limit where the skin can be used. Allowed options include:
- *   block, block__MODULE, comment, comment__NODETYPE, comment_wrapper,
- *   comment__wrapper_NODETYPE, node, node__NODETYPE, region,
- *   region__REGIONNAME, panels_display, panels_region, panels_pane, views_view,
- *   views_view__STYLENAME, views_view__DISPLAY_NAME, views_view__VIEWNAME, and
- *   views_view__VIEWNAME_DISPLAYNAME.
+ * - theme hooks (optional): An array containing certain allowed theme hooks,
+ *   which allow you to limit where the skin can be used. Allowed options
+ *   include: block, block__MODULE, comment_wrapper,comment__wrapper_NODETYPE,
+ *   node, node__NODETYPE, region, region__REGIONNAME, panels_display,
+ *   panels_region, panels_pane, views_view, views_view__STYLENAME,
+ *   views_view__DISPLAYNAME, and views_view__VIEWNAME.
  * - default_status (optional): Skins are disabled by default to keep UI
  *   clutter to a minimum. In some cases, like contrib themes, it makes sense to
  *   enable skins which are required to make the theme work properly by default.
@@ -310,7 +308,7 @@ function hook_skinr_skin_PLUGIN_info() {
  */
 function hook_skinr_skin_info_alter(&$skins) {
   // Remove restrictions on theme hooks the skin works with.
-  unset($skins['skinr_navigation']['theme hooks']);
+  unset($skins['skinr_menus']['theme hooks']);
 }
 
 /**
