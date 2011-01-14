@@ -559,7 +559,8 @@ function skinr_load_plugins($extension) {
     $mask = '@^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.inc$@';
     $loaded[$extension['name']] = file_scan_directory($dir, $mask, array(
       'key' => 'name',
-      'recurse' => FALSE,
+      'recurse' => TRUE,
+      'min_depth' => 1,
       'callback' => 'skinr_include_once',
     ));
   }

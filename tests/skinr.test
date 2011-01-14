@@ -177,10 +177,12 @@ class SkinrApiTestCase extends DrupalWebTestCase {
 
     // Skinr's own implementation in skinr.skinr.inc should always be found.
     $this->assertTrue(isset($config['rules']), 'hook_skinr_config_info() in $module.skinr.inc found.');
+    unset($config['rules']);
 
     // Skinr's implementation on behalf of Node module in modules/node.skinr.inc
     // should be found.
     $this->assertTrue(isset($config['node']), 'hook_skinr_config_info() in a custom path found.');
+    unset($config['node']);
 
     // Ensure that skinr_test_incompatible is not contained.
     $this->assertTrue(!isset($config['skinr_test_incompatible']), 'Incompatible hook_skinr_config_info() not found.');

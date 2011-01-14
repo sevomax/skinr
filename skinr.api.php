@@ -268,7 +268,7 @@ function hook_skinr_skin_info() {
  * For example, considering a module or theme with the name "extension" that
  * contains an include file:
  * @code
- * extension/skins/example.inc
+ * extension/skins/example/example.inc
  * @encode
  * The "hook" prefix is substituted with the name of the module or theme
  * implementing it ("extension"), and PLUGIN is substituted with the name of the
@@ -354,7 +354,7 @@ function hook_skinr_group_info() {
  * For example, considering a module or theme with the name "extension" that
  * contains an include file:
  * @code
- * extension/skins/example.inc
+ * extension/skins/example/example.inc
  * @encode
  * The "hook" prefix is substituted with the name of the module or theme
  * implementing it ("extension"), and PLUGIN is substituted with the name of the
