@@ -86,7 +86,7 @@ class SkinrInstallationTestCase extends DrupalWebTestCase {
  * Tests API functionality.
  */
 class SkinrApiTestCase extends DrupalWebTestCase {
-//  protected $profile = 'testing';
+  protected $profile = 'testing';
 
   public static function getInfo() {
     return array(
@@ -107,7 +107,6 @@ class SkinrApiTestCase extends DrupalWebTestCase {
     // Verify that skinr_implements() only returns extensions that are
     // compatible with this version of Skinr.
     $extensions = skinr_implements();
-    debug($extensions);
 
     // The expected extensions and their specific properties, if any.
     $all_expected = array(
@@ -168,7 +167,6 @@ class SkinrApiTestCase extends DrupalWebTestCase {
     $this->assertTrue(empty($skin_info), 'No unexpected skins found.');
   }
 
-
   /**
    * Tests hook_skinr_config_info().
    */
@@ -176,21 +174,17 @@ class SkinrApiTestCase extends DrupalWebTestCase {
     // Verify that skinr_get_config_info() finds all existing and compatible
     // hook_skinr_config_info() implementations.
     $config = skinr_get_config_info();
-    debug($config);
 
     // Skinr's own implementation in skinr.skinr.inc should always be found.
     $this->assertTrue(isset($config['rules']), 'hook_skinr_config_info() in $module.skinr.inc found.');
-    unset($config['rules']);
 
     // Skinr's implementation on behalf of Node module in modules/node.skinr.inc
     // should be found.
     $this->assertTrue(isset($config['node']), 'hook_skinr_config_info() in a custom path found.');
-    unset($config['node']);
 
     // Ensure that skinr_test_incompatible is not contained.
     $this->assertTrue(!isset($config['skinr_test_incompatible']), 'Incompatible hook_skinr_config_info() not found.');
     // After asserting all expected, the list of skins should be empty.
     $this->assertTrue(empty($config), 'No unexpected skins found.');
-    debug($config);
   }
 }
