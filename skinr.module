@@ -976,11 +976,12 @@ function skinr_get_skin_info() {
       );
       // Load the extension's plugins, if any.
       if ($files = skinr_load_plugins($extension)) {
-        // The source path for a plugin is the directory it is contained in.
+        // The base path for plugins is the directory defined by the extension.
         $dir = $extension['path'] . '/' . $extension['directory'];
         foreach ($files as $plugin => $file) {
           $hooks["{$name}_skinr_skin_{$plugin}_info"] = array(
-            'path' => $dir,
+            // The source path for a plugin is the plugin directory.
+            'path' => $dir . '/' . basename(dirname($file->uri)),
           ) + $extension;
         }
       }
@@ -1028,11 +1029,12 @@ function skinr_get_group_info() {
       );
       // Load the extension's plugins, if any.
       if ($files = skinr_load_plugins($extension)) {
-        // The source path for a plugin is the directory it is contained in.
+        // The base path for plugins is the directory defined by the extension.
         $dir = $extension['path'] . '/' . $extension['directory'];
         foreach ($files as $plugin => $file) {
           $hooks["{$name}_skinr_group_{$plugin}_info"] = array(
-            'path' => $dir,
+            // The source path for a plugin is the plugin directory.
+            'path' => $dir . '/' . basename(dirname($file->uri)),
           ) + $extension;
         }
       }

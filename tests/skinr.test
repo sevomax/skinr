@@ -131,8 +131,9 @@ class SkinrApiTestCase extends DrupalWebTestCase {
         'path' => drupal_get_path($expected['type'], $name),
         'directory' => NULL,
       );
-      $this->assertEqual($extensions[$name], $expected, t('%extension implementation found.', array(
+      $this->assertEqual($extensions[$name], $expected, t('%extension implementation found:<pre>@data</pre>', array(
         '%extension' => $name,
+        '@data' => var_export($extensions[$name], TRUE),
       )));
       unset($extensions[$name]);
     }
@@ -151,14 +152,22 @@ class SkinrApiTestCase extends DrupalWebTestCase {
     // return skins that are incompatible with the current Skinr API version.
     $skin_info = skinr_get_skin_info();
 
+    $path = drupal_get_path('module', 'skinr');
+
     // skinr_test_font is registered via hook_skinr_skin_info() in
     // skinr_test.skinr.inc.
     $this->assertTrue(isset($skin_info['skinr_test_font']), 'Skin registered in $module.skinr.inc found.');
+    $this->assertEqual($skin_info['skinr_test_font']['source']['path'], $path . '/tests', t('Skin path points to module directory: @path', array(
+      '@path' => $skin_info['skinr_test_font']['source']['path'],
+    )));
     unset($skin_info['skinr_test_font']);
 
     // skinr_test_example is registered via hook_skinr_skin_PLUGIN_info() in
     // skins/example.inc.
     $this->assertTrue(isset($skin_info['skinr_test_example']), 'Skin registered in plugin file found.');
+    $this->assertEqual($skin_info['skinr_test_example']['source']['path'], $path . '/tests/skins/example', t('Skin path points to plugin directory: @path', array(
+      '@path' => $skin_info['skinr_test_example']['source']['path'],
+    )));
     unset($skin_info['skinr_test_example']);
 
     // Ensure that skinr_test_incompatible is not contained.

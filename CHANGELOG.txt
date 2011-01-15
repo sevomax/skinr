@@ -2,6 +2,8 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#956994 by moonray, sun: Fixing an issue where JS and CSS files weren't loading
+  due to incorrect path information.
 #1027294 by Jacine: Changed API Documentation.
 #956994 by sun: Fixed plugin .inc files can be located in sub-directories.
 #956994 by sun: Revert debugging code in skinr.test.
