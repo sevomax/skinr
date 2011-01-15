@@ -1,0 +1,5 @@
+; $Id$
+name = Skinr test base theme (other)
+description = Test theme which acts as a normal base theme for other test subthemes. It does not include any skins.
+core = 7.x
+hidden = TRUE
