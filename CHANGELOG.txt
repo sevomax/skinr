@@ -2,6 +2,7 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#1015614 by sun: Added a subtheme for testing.
 #956994 by moonray, sun: Fixing an issue where JS and CSS files weren't loading
   due to incorrect path information.
 #1027294 by Jacine: Changed API Documentation.
