@@ -2,6 +2,8 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#1015614 by sun: Subtheme can collect skin information from disabled parent
+  themes.
 #1015614 by sun, Jacine: Added normal themes (no skins) for testing purposes.
 #1015614 by sun: Added a subtheme for testing.
 #956994 by moonray, sun: Fixing an issue where JS and CSS files weren't loading

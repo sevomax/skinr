@@ -495,8 +495,24 @@ function skinr_implements() {
     // implementations of all enabled themes, the equivalent of the module hook
     // is a theme .info file property 'skinr' that has the sub-keys 'api' and
     // optionally 'directory' defined.
-    foreach (list_themes() as $name => $theme) {
-      if (!empty($theme->status) && isset($theme->info['skinr']['api']) && $theme->info['skinr']['api'] == SKINR_VERSION) {
+    // Account for all enabled themes and (any recursive) base themes of them,
+    // regardless of whether base themes are enabled.
+    $all_themes = list_themes();
+    $themes = array();
+    foreach ($all_themes as $name => $theme) {
+      // If the theme is enabled, add it to the stack.
+      if (!empty($theme->status)) {
+        $themes[$name] = $theme;
+        // Find and add all base themes of the enabled theme to the stack.
+        // @see drupal_theme_initialize()
+        while ($name && isset($all_themes[$name]->base_theme)) {
+          $name = $all_themes[$name]->base_theme;
+          $themes[$name] = $all_themes[$name];
+        }
+      }
+    }
+    foreach ($themes as $name => $theme) {
+      if (isset($theme->info['skinr']['api']) && $theme->info['skinr']['api'] == SKINR_VERSION) {
         // Ensure that the theme name and the extension type is registered.
         $cache[$name] = array(
           'type' => 'theme',
