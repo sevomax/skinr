@@ -194,7 +194,7 @@ function hook_skinr_api_VERSION() {
  *   node, node__NODETYPE, region, region__REGIONNAME, panels_display,
  *   panels_region, panels_pane, views_view, views_view__STYLENAME,
  *   views_view__DISPLAYNAME, and views_view__VIEWNAME.
- * - default_status (optional): Skins are disabled by default to keep UI
+ * - default status (optional): Skins are disabled by default to keep UI
  *   clutter to a minimum. In some cases, like contrib themes, it makes sense to
  *   enable skins which are required to make the theme work properly by default.
  *   Setting this property to 1 will cause it to be enabled by default for all

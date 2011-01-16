@@ -858,7 +858,7 @@ function skinr_skin_info_default() {
     'attached' => array(),
     'options' => array(),
     'weight' => NULL,
-    'default_status' => 0,
+    'default status' => 0,
     'status' => array(),
   );
 }
@@ -938,7 +938,7 @@ function skinr_skin_info_process(&$skin_infos, $source) {
     $skin_infos[$skin_name]['source'] = $source;
 
     // Merge in default statuses for all themes.
-    $skin_infos[$skin_name]['status'] = array_merge(skinr_skin_info_status_default($skin_infos[$skin_name]['default_status']), $skin_infos[$skin_name]['status']);
+    $skin_infos[$skin_name]['status'] = array_merge(skinr_skin_info_status_default($skin_infos[$skin_name]['default status']), $skin_infos[$skin_name]['status']);
 
     // Add path to stylesheets.
     if (isset($skin_infos[$skin_name]['attached']['css'])) {
