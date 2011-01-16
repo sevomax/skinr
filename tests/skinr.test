@@ -190,10 +190,20 @@ class SkinrApiTestCase extends DrupalWebTestCase {
     )));
     unset($skin_info['skinr_test_basetheme']);
 
+    // skinr_test_subtheme is registered via hook_skinr_skin_info() in
+    // skinr_test_subtheme.skinr.inc.
+    $this->assertTrue(isset($skin_info['skinr_test_subtheme']), 'Skin registered in $subtheme.skinr.inc found.');
+    $this->assertEqual($skin_info['skinr_test_subtheme']['source']['path'], $path . '/tests/themes/skinr_test_subtheme', t('Skin path points to subtheme directory: @path', array(
+      '@path' => $skin_info['skinr_test_subtheme']['source']['path'],
+    )));
+    unset($skin_info['skinr_test_subtheme']);
+
     // Ensure that skinr_test_incompatible is not contained.
     $this->assertTrue(!isset($skin_info['skinr_test_incompatible']), 'Incompatible skin not found.');
     // After asserting all expected, the list of skins should be empty.
-    $this->assertTrue(empty($skin_info), 'No unexpected skins found.');
+    $this->assertTrue(empty($skin_info), t('No unexpected skins found: <pre>@data</pre>', array(
+      '@data' => var_export($skin_info, TRUE),
+    )));
   }
 
   /**

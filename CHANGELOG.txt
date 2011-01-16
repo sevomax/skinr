@@ -2,6 +2,8 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#1015614 by sun: Added tests ensuring skins of disabled themes aren't collected.
+#1028334 by Jacine: Changed the 'default_status()" property to "default status".
 #1015614 by Jacine: Fixing previous commit.
 #1015614 by sun: Subtheme can collect skin information from disabled parent
   themes.
