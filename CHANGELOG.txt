@@ -2,6 +2,7 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#1015614 by Jacine: Fixing previous commit.
 #1015614 by sun: Subtheme can collect skin information from disabled parent
   themes.
 #1015614 by sun, Jacine: Added normal themes (no skins) for testing purposes.
