@@ -41,6 +41,13 @@ function skinr_hook_info() {
 }
 
 /**
+ * Clears cached Skinr information.
+ */
+function skinr_cache_reset() {
+  cache_clear_all('skinr_', 'cache', TRUE);
+}
+
+/**
  * Implements hook_module_implements_alter().
  */
 function skinr_module_implements_alter(&$implementations, $hook) {
@@ -450,6 +457,8 @@ function skinr_rule_visible($rid) {
  *   - path: The path to the extension.
  *   - directory: (optional) The sub-directory holding Skinr plugin files.
  *   - ...: Any other properties defined by the module or theme.
+ *
+ * @todo Cache this.
  */
 function skinr_implements() {
   $cache = &drupal_static(__FUNCTION__);
@@ -459,11 +468,13 @@ function skinr_implements() {
     // Collect hook_skinr_api_VERSION() module implementations. This will also
     // auto-load $module.skinr.inc files, which may contain skin/group hook
     // implementations (when not using the plugin system).
+    $module_info = system_get_info('module');
     foreach (module_implements('skinr_api_' . SKINR_VERSION) as $module) {
       // Ensure that $module and the extension type is registered.
       $cache[$module] = array(
         'type' => 'module',
         'name' => $module,
+        'version' => isset($module_info[$module]['version']) ? $module_info[$module]['version'] : NULL,
       );
       // Check whether the hook returns any information.
       $function = $module . '_skinr_api_' . SKINR_VERSION;
@@ -499,15 +510,30 @@ function skinr_implements() {
     // regardless of whether base themes are enabled.
     $all_themes = list_themes();
     $themes = array();
+    // Additionally record the base themes and sub themes of each theme, in
+    // order to apply inheritance rules elsewhere. Do not assign these variables
+    // as properties on the theme objects themselves, since all objects are
+    // pointers (much like references) in PHP 5, so our properties would be
+    // visible for everyone else who calls list_themes().
+    $base_themes = array();
+    $sub_themes = array();
     foreach ($all_themes as $name => $theme) {
       // If the theme is enabled, add it to the stack.
       if (!empty($theme->status)) {
         $themes[$name] = $theme;
         // Find and add all base themes of the enabled theme to the stack.
         // @see drupal_theme_initialize()
+        $sub_theme_name = $name;
         while ($name && isset($all_themes[$name]->base_theme)) {
+          // Record the sub theme for the base theme.
+          $sub_themes[$all_themes[$name]->base_theme][$name] = $name;
+
+          // Add the base theme to the stack.
           $name = $all_themes[$name]->base_theme;
           $themes[$name] = $all_themes[$name];
+
+          // Record the base theme for the original sub theme.
+          $base_themes[$sub_theme_name][$name] = $name;
         }
       }
     }
@@ -517,6 +543,9 @@ function skinr_implements() {
         $cache[$name] = array(
           'type' => 'theme',
           'name' => $name,
+          'version' => isset($theme->info['version']) ? $theme->info['version'] : NULL,
+          'base themes' => isset($base_themes[$name]) ? $base_themes[$name] : array(),
+          'sub themes' => isset($sub_themes[$name]) ? $sub_themes[$name] : array(),
         );
         // Add any additional information that has been registered.
         $cache[$name] += $theme->info['skinr'];
@@ -692,20 +721,19 @@ function skinr_skin_delete_multiple($arguments) {
 }
 
 /**
- * Retrieves the desired skinr object.
+ * Retrieves a stored skin from the database.
  *
  * @param $theme
- *   The theme these settings apply to. If no theme name is provided, the
- *   current theme will be used.
+ *   The theme of the skin. Defaults to the current theme.
  * @param $module
- *   The module these settings apply to.
+ *   The module of the skin.
  * @param $sid
- *   The element ID these settings apply to.
+ *   The element ID of the skin.
  *
  * @return
- *   A skin object if both $module and $sid are specified. An array of skin
- *   objects if only $module is specified. An array of all skin objects for a
- *   theme if neither $module nor $sid is specified. FALSE on failure.
+ *   A skin object if both $module and $sid are specified. An array of skins
+ *   if only $module is specified. An array of all skins for a theme if neither
+ *   $module nor $sid is specified. FALSE on failure.
  *
  * @todo Rename $skin->skins to $skin->options throughout the module.
  */
@@ -716,55 +744,44 @@ function skinr_skin_load($theme = NULL, $module = NULL, $sid = NULL) {
     $theme = skinr_current_theme();
   }
 
+  // @todo This condition is always FALSE when no $sid is passed.
   if (!isset($skins[$theme][$module][$sid])) {
-    if (!isset($skins[$theme])) {
-      $skins[$theme] = array();
-    }
-    if (isset($module) && !isset($skins[$theme][$module])) {
-      $skins[$theme][$module] = array();
+    $skins += array($theme => array());
+    if (isset($module)) {
+      $skins[$theme] += array($module => array());
     }
 
-    if (isset($module) && isset($sid)) {
-      // Fetch just this sid.
-      $result = db_query("SELECT theme, module, sid, settings, skins FROM {skinr} WHERE theme = :theme AND module = :module AND sid = :sid", array(
-        ':theme' => $theme,
-        ':module' => $module,
-        ':sid' => $sid,
-      ));
+    $query = db_select('skinr', 's')
+      ->fields('s', array('theme', 'module', 'sid', 'settings', 'skins'));
+    if (isset($theme)) {
+      $query->condition('theme', $theme);
     }
-    elseif (isset($module)) {
-      // Fetch all settings for this theme and module.
-      $result = db_query("SELECT theme, module, sid, settings, skins FROM {skinr} WHERE theme = :theme AND module = :module", array(
-        ':theme' => $theme,
-        ':module' => $module,
-      ));
+    if (isset($module)) {
+      $query->condition('module', $module);
     }
-    else {
-      // Fetch all settings for this theme.
-      $result = db_query("SELECT theme, module, sid, settings, skins FROM {skinr} WHERE theme = :theme", array(
-        ':theme' => $theme,
-      ));
+    if (isset($sid)) {
+      $query->condition('sid', $sid);
     }
-
-    foreach ($result as $skin) {
+    foreach ($query->execute() as $skin) {
       $skin->settings = unserialize($skin->settings);
       $skin->skins = unserialize($skin->skins);
       $skins[$skin->theme][$skin->module][$skin->sid] = $skin;
     }
   }
 
-  if (!isset($sid) && isset($module)) {
-    // Return all the skinrs for the theme.
+  // Return all skins for the passed theme.
+  if (!isset($module) && !isset($sid)) {
     if (isset($skins[$theme])) {
       return $skins[$theme];
     }
   }
+  // Return all skins for the passed module.
   elseif (!isset($sid)) {
-    // Return all the skinrs for the module.
     if (isset($skins[$theme][$module])) {
       return $skins[$theme][$module];
     }
   }
+  // Return the requested skin.
   elseif (isset($skins[$theme][$module][$sid])) {
     return $skins[$theme][$module][$sid];
   }
@@ -840,46 +857,44 @@ function skinr_current_theme($exclude_admin_theme = FALSE) {
 }
 
 /**
- * Prepare defaults for skins.
- *
- * @return
- *   An array of default skin settings.
- *
- * @todo Merge into skinr_get_skin_info() and remove this function.
- */
-function skinr_skin_info_default() {
-  return array(
-    'name' => '',
-    'title' => '',
-    'type' => 'checkboxes',
-    'description' => '',
-    'group' => '',
-    'theme hooks' => array('*'),
-    'attached' => array(),
-    'options' => array(),
-    'weight' => NULL,
-    'default status' => 0,
-    'status' => array(),
-  );
-}
-
-/**
  * Prepare the default status for a skin.
  *
- * @param $default_status
- *   The default status for all themes for a skin.
+ * @param $skin_info
+ *   Information about a registered skin.
  *
  * @return
  *   An array of default statuses for each enabled theme.
  */
-function skinr_skin_info_status_default($default_status = 0) {
+function skinr_skin_info_status_default($skin_info) {
   $status = array();
-  foreach (list_themes() as $theme_name => $theme) {
+  // Retrieve the explicit default status of the registering theme for itself.
+  $base_theme_status = NULL;
+  if (isset($skin_info['status'][$skin_info['source']['name']])) {
+    $base_theme_status = $skin_info['status'][$skin_info['source']['name']];
+  }
+  // Retrieve the sub themes of the base theme that registered the skin.
+  $sub_themes = array();
+  if (isset($skin_info['source']['sub themes'])) {
+    $sub_themes = $skin_info['source']['sub themes'];
+  }
+  $themes = list_themes();
+  foreach ($themes as $name => $theme) {
     if (!$theme->status) {
       continue;
     }
-    $status[$theme_name] = $default_status;
+    // If this theme is a sub theme of the theme that registered the skin, check
+    // whether we need to inherit the status of the base theme to the sub theme.
+    // This is the case when a skin of a base theme enables itself for the base
+    // theme (not knowing about potential sub themes).
+    if (isset($base_theme_status) && isset($sub_themes[$name])) {
+      $status[$name] = $base_theme_status;
+    }
+    // Apply global default.
+    $status += array($name => $skin_info['default status']);
   }
+  // Lastly, apply all explicit defaults.
+  $status = array_merge($status, $skin_info['status']);
+
   return $status;
 }
 
@@ -928,8 +943,20 @@ function _skinr_add_path_to_files(&$files, $path) {
  */
 function skinr_skin_info_process(&$skin_infos, $source) {
   foreach ($skin_infos as $skin_name => $skin_info) {
-    // Merge in defaults.
-    $skin_infos[$skin_name] = array_merge(skinr_skin_info_default(), $skin_infos[$skin_name]);
+    // Populate default properties.
+    $skin_infos[$skin_name] += array(
+      'name' => '',
+      'title' => '',
+      'type' => 'checkboxes',
+      'description' => '',
+      'group' => '',
+      'theme hooks' => array('*'),
+      'attached' => array(),
+      'options' => array(),
+      'weight' => NULL,
+      'default status' => 0,
+      'status' => array(),
+    );
 
     // Merge in name.
     $skin_infos[$skin_name]['name'] = $skin_name;
@@ -937,8 +964,8 @@ function skinr_skin_info_process(&$skin_infos, $source) {
     // Merge in source information.
     $skin_infos[$skin_name]['source'] = $source;
 
-    // Merge in default statuses for all themes.
-    $skin_infos[$skin_name]['status'] = array_merge(skinr_skin_info_status_default($skin_infos[$skin_name]['default status']), $skin_infos[$skin_name]['status']);
+    // Merge in default status for all themes.
+    $skin_infos[$skin_name]['status'] = skinr_skin_info_status_default($skin_infos[$skin_name]);
 
     // Add path to stylesheets.
     if (isset($skin_infos[$skin_name]['attached']['css'])) {
@@ -1218,3 +1245,32 @@ function skinr_handler($type, $op, $handler, &$a3, $a4 = NULL, $a5 = NULL, $a6 =
     }
   }
 }
+
+/**
+ * Implements hook_modules_enabled().
+ */
+function skinr_modules_enabled() {
+  skinr_cache_reset();
+}
+
+/**
+ * Implements hook_modules_disabled().
+ */
+function skinr_modules_disabled() {
+  skinr_cache_reset();
+}
+
+/**
+ * Implements hook_themes_enabled().
+ */
+function skinr_themes_enabled() {
+  skinr_cache_reset();
+}
+
+/**
+ * Implements hook_themes_disabled().
+ */
+function skinr_themes_disabled() {
+  skinr_cache_reset();
+}
+

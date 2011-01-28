@@ -41,7 +41,6 @@ function skinr_ui_menu() {
     'title' => 'List',
     'description' => t('Manage Skinr settings.'),
     'type' => MENU_DEFAULT_LOCAL_TASK,
-    'parent' => 'admin/appearance/skinr',
     'weight' => -10,
   );
 
@@ -51,41 +50,27 @@ function skinr_ui_menu() {
     'description' => 'Manage which skins are available when changing Skinr settings.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('skinr_ui_admin_skin_infos'),
-    'access arguments' => array('administer site configuration'),
+    'access arguments' => array('administer skinr'),
     'file' => 'skinr_ui.admin.inc',
     'type' => MENU_LOCAL_TASK,
-    'parent' => 'admin/appearance/skinr',
   );
   $items['admin/appearance/skinr/skins/select'] = array(
     'title' => 'List',
     'description' => 'Manage your skins.',
     'type' => MENU_DEFAULT_LOCAL_TASK,
-    'parent' => 'admin/appearance/skinr/skins',
     'weight' => -1,
   );
-  // drupal_uninstall_modules() invokes hook_menu() in disabled modules and does
-  // not respect module dependencies. Therefore, uninstalling both Skinr UI and
-  // Skinr at the same time is leading to a database error, since
-  // skinr_get_skin_info() tries to load data from tables that have been deleted
-  // already.
-  // @see http://drupal.org/node/151452
-  // @see http://drupal.org/node/320303
-  $skin_infos = array();
-  if (in_array('skinr', module_list())) {
-    $skin_infos = skinr_get_skin_info();
-  }
-  foreach ($skin_infos as $skin_info) {
-    $items['admin/appearance/skinr/skins/settings/' . $skin_info['name']] = array(
-      'title' => $skin_info['title'],
-      'description' => 'Manage which options are available for each Skin when changing Skinr settings.',
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('skinr_ui_admin_skin_infos_settings', $skin_info['name']),
-      'access arguments' => array('administer site configuration'),
-      'file' => 'skinr_ui.admin.inc',
-      'type' => MENU_LOCAL_TASK,
-      'parent' => 'admin/appearance/skinr/skins',
-    );
-  }
+  $items['admin/appearance/skinr/skins/settings/%skinr_ui_skin_info'] = array(
+    'title' => 'Skin settings',
+    'title callback' => 'skinr_ui_skin_info_title',
+    'title arguments' => array(5),
+    'description' => 'Manage which options are available for each Skin when changing Skinr settings.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('skinr_ui_admin_skin_infos_settings', 5),
+    'access arguments' => array('administer skinr'),
+    'file' => 'skinr_ui.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
 
   // Rules.
   $items['admin/appearance/skinr/rules'] = array(
@@ -93,7 +78,6 @@ function skinr_ui_menu() {
     'page callback' => 'skinr_rules',
     'type' => MENU_LOCAL_TASK,
     'access arguments' => array('administer skinr'),
-    'parent' => 'admin/appearance/skinr',
     'weight' => 1,
     'description' => t('Configure region and page level Skinr rules.'),
     'file' => 'skinr_ui.rules.inc',
@@ -130,7 +114,6 @@ function skinr_ui_menu() {
     'page arguments' => array('skinr_ui_import_form'),
     'type' => MENU_LOCAL_TASK,
     'access arguments' => array('administer skinr'),
-    'parent' => 'admin/appearance/skinr',
     'weight' => 2,
     'description' => t('Import Skinr settings.'),
     'file' => 'skinr_ui.admin.inc',
@@ -141,7 +124,6 @@ function skinr_ui_menu() {
     'page arguments' => array('skinr_ui_export_form'),
     'type' => MENU_LOCAL_TASK,
     'access arguments' => array('administer skinr'),
-    'parent' => 'admin/appearance/skinr',
     'weight' => 3,
     'description' => t('Export Skinr settings.'),
     'file' => 'skinr_ui.admin.inc',
@@ -186,6 +168,24 @@ function skinr_ui_menu() {
   );
 
   return $items;
+}
+
+/**
+ * Menu argument loader; Retrieves skin information for a single skin.
+ */
+function skinr_ui_skin_info_load($name) {
+  $skin_info = skinr_get_skin_info();
+  if (isset($skin_info[$name])) {
+    return $skin_info[$name];
+  }
+  return FALSE;
+}
+
+/**
+ * Menu title callback; Returns the title of a skin.
+ */
+function skinr_ui_skin_info_title($skin_info) {
+  return check_plain($skin_info['title']);
 }
 
 /**

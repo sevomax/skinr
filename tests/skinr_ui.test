@@ -120,4 +120,27 @@ class SkinrUIBasicTestCase extends DrupalWebTestCase {
     $class = (string) $elements[0]['class'];
     $this->assertTrue(strpos($class, ' font-1 '), 'CSS class of configured skin option found.');
   }
+
+  /**
+   * Tests default status of skins.
+   *
+   * @todo Add assertions for 'default status' itself.
+   */
+  function testSkinAdminDefaultStatus() {
+    // The skinr_test_basetheme skin defined by the skinr_test_basetheme theme
+    // specifies a default status for itself. Enable its subtheme (only) to test
+    // that the status of the basetheme is inherited to the subtheme.
+    theme_enable(array('garland', 'skinr_test_subtheme'));
+
+    // Verify that the skin appears on the skin overview page.
+    $this->drupalGet('admin/appearance/skinr/skins');
+    $this->assertLinkByHref('admin/appearance/skinr/skins/settings/skinr_test_basetheme');
+    $this->drupalGet('admin/appearance/skinr/skins/settings/skinr_test_basetheme');
+
+    // Verify that it is enabled for the skinr_test_subtheme, and disabled for
+    // Bartik and Garland by default.
+    $this->assertFieldChecked('edit-skins-skinr-test-subtheme-skinr-test-basetheme-enable', 'skinr_test_basetheme skin is enabled for skinr_test_subtheme.');
+    $this->assertNoFieldChecked('edit-skins-bartik-skinr-test-basetheme-enable', 'skinr_test_basetheme skin is disabled for Bartik.');
+    $this->assertNoFieldChecked('edit-skins-garland-skinr-test-basetheme-enable', 'skinr_test_basetheme skin is disabled for Garland.');
+  }
 }

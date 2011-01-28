@@ -199,6 +199,9 @@ function hook_skinr_api_VERSION() {
  *   enable skins which are required to make the theme work properly by default.
  *   Setting this property to 1 will cause it to be enabled by default for all
  *   installed themes.
+ * - status: (optional) An associative array whose keys are theme names and
+ *   whose corresponding values denote the desired default status for the
+ *   particular theme.
  *
  * The "hook" prefix is substituted with the name of the module or theme
  * implementing it.
@@ -252,6 +255,21 @@ function hook_skinr_skin_info() {
           'js' => array('js/dropdown.js'),
         ),
       ),
+    ),
+    // Optional: Specify a global default status for this skin, making it
+    // available or unavailable to all themes.
+    'default status' => 0,
+    // Optional: Specify a default status for a particular theme. This mainly
+    // makes sense for skins provided by themes only.
+    'status' => array(
+      'bartik' => 1,
+      'garland' => 0,
+      // In case you are registering a skin for your base theme, then you likely
+      // do not know which sub themes are going to use your base theme. By
+      // setting the global default status to 0 (as above) and enabling the skin
+      // for your base theme itself, the skin's status will be automatically
+      // inherited to all sub themes of your base theme.
+      'mybasetheme' => 1,
     ),
   );
   return $skins;

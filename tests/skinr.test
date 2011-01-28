@@ -116,6 +116,7 @@ class SkinrApiTestCase extends DrupalWebTestCase {
       'skinr' => array(),
       // Node is a required core module, so always expected.
       'node' => array(
+        'version' => VERSION,
         'path' => drupal_get_path('module', 'skinr') . '/modules',
       ),
       // skinr_test has been installed.
@@ -126,18 +127,28 @@ class SkinrApiTestCase extends DrupalWebTestCase {
         'type' => 'theme',
         'api' => 2,
         'directory' => 'skins',
+        'base themes' => array(),
+        'sub themes' => drupal_map_assoc(array('skinr_test_subtheme')),
       ),
       'skinr_test_subtheme' => array(
         'type' => 'theme',
         'api' => 2,
         'directory' => 'skins',
+        'base themes' => drupal_map_assoc(array('skinr_test_basetheme')),
+        'sub themes' => array(),
       ),
     );
+    // When running tests on Skinr code packaged by drupal.org, all 'version'
+    // properties will have the version of the Skinr module. When running on a
+    // repository checkout, the version is NULL (undefined).
+    $skinr_module_info = system_get_info('module', 'skinr');
+    $skinr_module_version = (!empty($skinr_module_info['version']) ? $skinr_module_info['version'] : NULL);
     foreach ($all_expected as $name => $expected) {
       // Populate defaults.
       $expected += array(
         'type' => 'module',
         'name' => $name,
+        'version' => $skinr_module_version,
       );
       $expected += array(
         'path' => drupal_get_path($expected['type'], $name),
@@ -188,6 +199,9 @@ class SkinrApiTestCase extends DrupalWebTestCase {
     $this->assertEqual($skin_info['skinr_test_basetheme']['source']['path'], $path . '/tests/themes/skinr_test_basetheme', t('Skin path points to basetheme directory: @path', array(
       '@path' => $skin_info['skinr_test_basetheme']['source']['path'],
     )));
+    $default_theme = variable_get('theme_default', 'bartik');
+    $this->assertEqual($skin_info['skinr_test_basetheme']['status'][$default_theme], 0, 'Basetheme skin is disabled for default theme.');
+    $this->assertEqual($skin_info['skinr_test_basetheme']['status']['skinr_test_basetheme'], 1, 'Basetheme skin is enabled for Skinr test basetheme.');
     unset($skin_info['skinr_test_basetheme']);
 
     // skinr_test_subtheme is registered via hook_skinr_skin_info() in
