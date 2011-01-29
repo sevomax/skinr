@@ -220,6 +220,48 @@ class SkinrApiTestCase extends DrupalWebTestCase {
     )));
   }
 
+
+  /**
+   * Tests hook_skinr_group_info().
+   */
+  function testSkinrGroupInfo() {
+    $group_info = skinr_get_group_info();
+
+    // Verify that default skin groups are found.
+    $all_expected = array(
+      'general' => array(
+        'title' => t('General'),
+        'weight' => -10,
+      ),
+      'box' => array(
+        'title' => t('Box styles'),
+      ),
+      'typography' => array(
+        'title' => t('Typography'),
+      ),
+      'layout' => array(
+        'title' => t('Layout'),
+      ),
+    );
+    foreach ($all_expected as $name => $expected) {
+      // We don't want to be pixel-perfect here.
+      if (isset($group_info[$name]['description'])) {
+        $expected['description'] = $group_info[$name]['description'];
+      }
+      $expected += array(
+        'description' => '',
+        'weight' => 0,
+      );
+      $this->assertEqual($group_info[$name], $expected, t('Group %group found:<pre>@data</pre>', array(
+        '%group' => $name,
+        '@data' => var_export($group_info[$name], TRUE),
+      )));
+      unset($group_info[$name]);
+    }
+    // After asserting all expected, the list of extensions should be empty.
+    $this->assertTrue(empty($group_info), 'No unexpected groups found.');
+  }
+
   /**
    * Tests hook_skinr_config_info().
    */

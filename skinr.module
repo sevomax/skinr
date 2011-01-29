@@ -949,7 +949,7 @@ function skinr_skin_info_process(&$skin_infos, $source) {
       'title' => '',
       'type' => 'checkboxes',
       'description' => '',
-      'group' => '',
+      'group' => 'general',
       'theme hooks' => array('*'),
       'attached' => array(),
       'options' => array(),
@@ -1086,12 +1086,13 @@ function skinr_get_group_info() {
           $extension_info = $function();
           if (isset($extension_info) && is_array($extension_info)) {
             // Prepare the skin group information.
-            $extension_info += array(
-              'title' => '',
-              'description' => '',
-              'weight' => 0,
-            );
-
+            foreach ($extension_info as &$group) {
+              $group += array(
+                'title' => '',
+                'description' => '',
+                'weight' => 0,
+              );
+            }
             $group_info += $extension_info;
           }
         }

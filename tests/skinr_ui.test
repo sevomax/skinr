@@ -7,21 +7,10 @@
  */
 
 /**
- * Tests UI functionality.
- *
- * @todo Rename and split this test case into several ones, once we have a
- *   certain amount of tests and an idea of how to structure them.
+ * Base class for Skinr UI tests.
  */
-class SkinrUIBasicTestCase extends DrupalWebTestCase {
+class SkinrUITestCase extends DrupalWebTestCase {
   protected $profile = 'testing';
-
-  public static function getInfo() {
-    return array(
-      'name' => 'UI',
-      'description' => 'Tests Skinr UI functionality.',
-      'group' => 'Skinr',
-    );
-  }
 
   function setUp() {
     parent::setUp(array('block', 'contextual', 'skinr_test', 'skinr_ui'));
@@ -63,6 +52,23 @@ class SkinrUIBasicTestCase extends DrupalWebTestCase {
         'pages' => '',
       ))
       ->execute();
+
+    // Enable Garland and skinr_test_subtheme without enabling its base theme in
+    // order to test subtheme inheritance functionality.
+    theme_enable(array('garland', 'skinr_test_subtheme'));
+  }
+}
+
+/**
+ * Tests UI functionality.
+ */
+class SkinrUIBasicTestCase extends SkinrUITestCase {
+  public static function getInfo() {
+    return array(
+      'name' => 'UI',
+      'description' => 'Tests basic Skinr UI functionality.',
+      'group' => 'Skinr',
+    );
   }
 
   /**
@@ -120,18 +126,45 @@ class SkinrUIBasicTestCase extends DrupalWebTestCase {
     $class = (string) $elements[0]['class'];
     $this->assertTrue(strpos($class, ' font-1 '), 'CSS class of configured skin option found.');
   }
+}
+
+/**
+ * Tests administrative pages functionality.
+ */
+class SkinrUIAdminTestCase extends SkinrUITestCase {
+  public static function getInfo() {
+    return array(
+      'name' => 'Administration',
+      'description' => 'Tests administrative Skinr UI functionality.',
+      'group' => 'Skinr',
+    );
+  }
+
+  function setUp() {
+    parent::setUp(array('skinr_test', 'skinr_ui'));
+
+    $this->admin_user = $this->drupalCreateUser(array(
+      'administer skinr',
+      'edit skin settings',
+      'edit advanced skin settings',
+    ));
+    $this->drupalLogin($this->admin_user);
+
+    // Enable Garland and skinr_test_subtheme without enabling its base theme in
+    // order to test subtheme inheritance functionality.
+    theme_enable(array('garland', 'skinr_test_subtheme'));
+  }
 
   /**
    * Tests default status of skins.
    *
+   * The skinr_test_basetheme skin defined by the skinr_test_basetheme theme
+   * specifies a default status for itself. Its subtheme should inherit the
+   * status of the basetheme.
+   *
    * @todo Add assertions for 'default status' itself.
    */
-  function testSkinAdminDefaultStatus() {
-    // The skinr_test_basetheme skin defined by the skinr_test_basetheme theme
-    // specifies a default status for itself. Enable its subtheme (only) to test
-    // that the status of the basetheme is inherited to the subtheme.
-    theme_enable(array('garland', 'skinr_test_subtheme'));
-
+  function testSkinDefaultStatus() {
     // Verify that the skin appears on the skin overview page.
     $this->drupalGet('admin/appearance/skinr/skins');
     $this->assertLinkByHref('admin/appearance/skinr/skins/settings/skinr_test_basetheme');
@@ -142,5 +175,19 @@ class SkinrUIBasicTestCase extends DrupalWebTestCase {
     $this->assertFieldChecked('edit-skins-skinr-test-subtheme-skinr-test-basetheme-enable', 'skinr_test_basetheme skin is enabled for skinr_test_subtheme.');
     $this->assertNoFieldChecked('edit-skins-bartik-skinr-test-basetheme-enable', 'skinr_test_basetheme skin is disabled for Bartik.');
     $this->assertNoFieldChecked('edit-skins-garland-skinr-test-basetheme-enable', 'skinr_test_basetheme skin is disabled for Garland.');
+  }
+
+  /**
+   * Tests skin group functionality.
+   */
+  function testSkinGroups() {
+    $this->drupalGet('admin/appearance/skinr/skins');
+
+    // Verify that the 'General' (default) group appears.
+    $this->assertText(t('General'));
+
+    // Verify that the 'Typography' group appears, since skinr_test module
+    // registers a skin in that group.
+    $this->assertText(t('Typography'));
   }
 }

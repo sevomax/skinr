@@ -427,6 +427,7 @@ function skinr_ui_admin_skin_infos($form, $form_state) {
     );
     return $form;
   }
+  $groups = skinr_get_group_info();
 
   uasort($skins, 'skinr_ui_sort_by_title');
   $form['skins'] = array('#tree' => TRUE);
@@ -444,14 +445,15 @@ function skinr_ui_admin_skin_infos($form, $form_state) {
     );
 
     // Create a row entry for this skin.
-    $form['skins'][$skin['group']][$name] = _skinr_ui_admin_skin_infos_build_row($skin, $extra);
+    $group = $groups[$skin['group']]['title'];
+    $form['skins'][$group][$name] = _skinr_ui_admin_skin_infos_build_row($skin, $extra);
   }
 
   // Add basic information to the fieldsets.
   foreach (element_children($form['skins']) as $package) {
     $form['skins'][$package] += array(
       '#type' => 'fieldset',
-      '#title' => t($package),
+      '#title' => $package,
       '#collapsible' => TRUE,
       '#theme' => 'skinr_ui_admin_skin_infos_fieldset',
       '#header' => array(
