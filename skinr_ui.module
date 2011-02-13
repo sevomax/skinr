@@ -637,6 +637,7 @@ function skinr_ui_preprocess(&$variables, $hook) {
   $config = skinr_get_config_info();
 
   $original_hook = $hook;
+  $theme_registry = theme_get_registry();
   if (isset($theme_registry[$hook]['original hook'])) {
     $original_hook = $theme_registry[$hook]['original hook'];
   }
