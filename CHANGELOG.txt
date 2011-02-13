@@ -2,6 +2,7 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+#1053738 by moonray: Fixed Simpletest for Skinr UI fails.
 #1051456 by moonray: Fixed $theme_registry() has no value in skinr_ui_preprocess().
 #1040108 by sun, moonray: Fixed Default groups don't register.
 #977118 by sun: Fixed Skins in disabled basetheme cannot be enabled for

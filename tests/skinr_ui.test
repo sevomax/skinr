@@ -104,7 +104,7 @@ class SkinrUIBasicTestCase extends SkinrUITestCase {
     // available.
     // Verify that we can apply the skinr_test_font skin to the block.
     $edit = array(
-      'skinr_settings[block_group][bartik][widgets][skinr_test_font]' => 'font_1',
+      'skinr_settings[block_group][bartik][widgets][typography][skinr_test_font]' => 'font_1',
     );
     // NULL means that we want to post to the page that is still contained in
     // SimpleTest's internal browser; i.e., the page of the path above. Instead
