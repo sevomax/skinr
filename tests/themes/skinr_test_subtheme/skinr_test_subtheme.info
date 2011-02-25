@@ -1,4 +1,3 @@
-; $Id$
 name = Skinr test subtheme
 description = Test theme which uses skinr_test_basetheme as the base theme.
 core = 7.x

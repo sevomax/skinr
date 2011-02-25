@@ -1,4 +1,3 @@
-; $Id$
 name = Skinr Incompatible Testing
 description = A test module used for testing incompatible Skinr API implementations.
 package = Testing

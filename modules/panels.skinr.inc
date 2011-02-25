@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * Provide skinr handling for panels.module.

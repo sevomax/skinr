@@ -1,4 +1,3 @@
-;$Id$
 name = Skinr UI
 description = Administrative interface to skinr. Without this module, you cannot edit your skins.
 package = Skinr

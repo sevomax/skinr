@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * Defines the various default handler functions to support Skinr.

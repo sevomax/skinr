@@ -1,4 +1,3 @@
-; $Id$
 name = Skinr
 description = Provides a way to define and/or skin bits of Drupal output from the UI.
 package = Skinr
