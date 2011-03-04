@@ -82,6 +82,7 @@ function skinr_preprocess(&$variables, $hook) {
   $config = skinr_get_config_info();
   $current_theme = skinr_current_theme();
   $theme_registry = theme_get_registry();
+  $skin_info = skinr_get_skin_info();
 
   $original_hook = (isset($theme_registry[$hook]['original hook']) ? $theme_registry[$hook]['original hook'] : $hook);
 
@@ -89,204 +90,58 @@ function skinr_preprocess(&$variables, $hook) {
     if (!empty($module_settings['preprocess'][$original_hook])) {
       $preprocess_settings = $module_settings['preprocess'][$original_hook];
       $sids = skinr_handler('preprocess_index_handler', 'preprocess', $preprocess_settings['index_handler'], $variables);
-
-      // @todo Kill skinr_skin_extract(), and only store what has been
-      //   configured, enabled, and should be actively applied, in order to use
-      //   drupal_process_attached().
-      if ($extracted = skinr_skin_extract($module, $sids, $current_theme)) {
-        foreach ($extracted['css'] as $file) {
-          if ($file['enabled']) {
-            drupal_add_css($file['path'], $file['file_options']);
-          }
-        }
-        foreach ($extracted['js'] as $file) {
-          if ($file['enabled']) {
-            drupal_add_js($file['path'], $file['file_options']);
-          }
-        }
-        $variables['classes_array'] = array_merge($variables['classes_array'], $extracted['classes']);
-
-        // Invoke hook_skinr_preprocess_alter() in all modules.
-        $context = array(
-          'hook' => $hook,
-          'variables' => &$variables,
-          'skin' => &$extracted,
-        );
-        drupal_alter('skinr_preprocess', $context);
-      }
-    }
-  }
-}
-
-/**
- * Helper function to extract classes, JS and CSS files.
- *
- * @param $module
- *   The module these settings applies to.
- * @param $sids
- *   The settings ID, or an array of settings IDs.
- * @param $settings
- *   Skinr configuration data for the desired module.
- * @param $theme
- *   The theme these settings apply to. If no theme name is provided, the
- *   current theme will be used.
- *
- * @return
- *   An array containing the module, sids, classes, CSS, JS, template to be
- *   applied.
- *
- * @todo Rename this function to something more indicative of its function.
- * @todo Rename $sids to something more descriptive; these are skin ids.
- */
-function skinr_skin_extract($module, $sids, $theme = NULL) {
-  if (empty($sids)) {
-    return FALSE;
-  }
-  if (!is_array($sids)) {
-    $sids = array($sids);
-  }
-  if (!isset($theme)) {
-    $theme = skinr_current_theme();
-  }
-
-  $extracted = array(
-    'module' => $module,
-    'sids' => $sids,
-    'classes' => array(),
-    'css' => array(),
-    'js' => array(),
-  );
-
-  $options = array();
-  foreach ($sids as $sid) {
-    if ($skin = skinr_skin_load($theme, $module, $sid)) {
-      $options = $skin->skins + $options;
-    }
-  }
-
-  $extracted['css'] = skinr_skin_get_files($options, 'css', $theme);
-  $extracted['js'] = skinr_skin_get_files($options, 'js', $theme);
-
-  $extracted['classes'] = skinr_flatten_skins_array($options);
-
-  return $extracted;
-}
-
-/**
- * Helper function to fetch all CSS or JS files from an array of skins.
- *
- * @param $skin_options
- *   A an array of skin options.
- * @param $type
- *   Either 'css' or 'js', depending on which files you wish to retrieve from
- *   these skins.
- * @param $theme
- *   The theme from which to grab these files. Defaults to the current theme.
- *
- * @return
- *   An array of file data.
- */
-function skinr_skin_get_files($skin_options, $type, $theme = NULL) {
-  if (empty($theme)) {
-    $theme = skinr_current_theme();
-  }
-
-  $skin_infos = skinr_get_skin_info();
-  $files = array();
-  if (!empty($skin_options['_options'])) {
-    foreach ($skin_options['_options'] as $skin_name => $skin_option) {
-      if (!is_array($skin_options)) {
-        $skin_options = array($skin_options);
+      if (!is_array($sids)) {
+        $sids = array($sids);
       }
 
-      // Check if the $skin_name is enabled for this theme.
-      if (!empty($skin_infos[$skin_name]['status'][$theme])) {
-        // Check if this skin has any stylesheets attached to it.
-        if (!empty($skin_infos[$skin_name]['attached'][$type])) {
-          foreach ($skin_infos[$skin_name]['attached'][$type] as $file) {
-            if (is_array($file)) {
-              $path = $file[0];
-              $file_options = count($file) > 1 ? $file[1] : NULL;
-            }
-            else {
-              $path = $file;
-              $file_options = NULL;
-            }
-            $files[$path] = array(
-              'file' => basename($path),
-              'path' => $path,
-              'file_options' => $file_options,
-              'enabled' => TRUE,
-              'skin' => $skin_name,
-              'skin_option' => NULL,
-            );
-          }
+      $applied_skins = array();
+      foreach ($sids as $sid) {
+        if ($skin = skinr_skin_load($current_theme, $module, $sid)) {
+          $applied_skins = $skin->skins + $applied_skins;
         }
+      }
 
-        foreach ($skin_infos[$skin_name]['options'] as $skin_info_option_name => $skin_info_option) {
-          if (!empty($skin_info_option['attached'][$type])) {
-            foreach ($skin_info_option['attached'][$type] as $file) {
-              $enabled = FALSE;
-              if (_skinr_in_multiarray($skin_info_option_name, $skin_options)) {
-                $enabled = TRUE;
+      // Invoke hook_skinr_preprocess_alter() in all modules.
+      // @todo Review whether this alter hook is useful or not, and if it's in
+      //   the right place or not.
+      $context = array(
+        'hook' => $hook,
+        'variables' => &$variables,
+        'theme' => $current_theme,
+        'module' => $module,
+        'sids' => $sids,
+        'options' => $applied_skins,
+      );
+      drupal_alter('skinr_preprocess', $context);
+
+      // Use drupal_process_attached() to add attachements such as JS and CSS.
+      if (!empty($applied_skins)) {
+        if (!empty($applied_skins['_options'])) {
+          foreach ($applied_skins['_options'] as $skin_name => $skin_options) {
+            // Make sure this skin is enabled for the current theme.
+            if (!empty($skin_info[$skin_name]['status'][$current_theme])) {
+              if (isset($skin_info[$skin_name]['attached'])) {
+                $elements['#attached'] = $skin_info[$skin_name]['attached'];
+                drupal_process_attached($elements);
               }
 
-              if (is_array($file)) {
-                $path = $file[0];
-                $file_options = count($file) > 1 ? $file[1] : NULL;
+              if (!is_array($skin_options)) {
+                $skin_options = array($skin_options);
               }
-              else {
-                $path = $file;
-                $file_options = NULL;
+              foreach ($skin_options as $skin_option) {
+                if (isset($skin_info[$skin_name]['options'][$skin_option]['attached'])) {
+                  $elements['#attached'] = $skin_info[$skin_name]['options'][$skin_option]['attached'];
+                  drupal_process_attached($elements);
+                }
               }
-
-              $files[$path] = array(
-                'file' => basename($path),
-                'path' => $path,
-                'file_options' => $file_options,
-                'skin' => $skin_name,
-                'skin_option' => $skin_info_option_name,
-              );
-              // Allow for other options to set the same file; make sure it's
-              // enabled when required.
-              $files[$path]['enabled'] = (!empty($files[$path]['enabled']) ? $files[$path]['enabled'] : FALSE) || $enabled;
             }
           }
         }
+
+        $variables['classes_array'] = array_merge($variables['classes_array'], skinr_flatten_skins_array($applied_skins));
       }
     }
   }
-
-  return $files;
-}
-
-/**
- * Checks if a value exists in a multi-dimensional array.
- *
- * @param $needle
- *   The value to find.
- * @param $haystack
- *   The array.
- *
- * @return
- *   Returns TRUE if $needle is found in the array, FALSE otherwise.
- */
-function _skinr_in_multiarray($needle, $haystack) {
-  if (is_array($haystack)) {
-    // If $needle is in $haystack return TRUE.
-    if (in_array($needle, $haystack)) {
-      return TRUE;
-    }
-
-    // If $needle isn't in $haystack, then check each item in the array.
-    foreach ($haystack as $haybale) {
-      if (is_array($haybale) && _skinr_in_multiarray($needle, $haybale)) {
-        return TRUE;
-      }
-    }
-  }
-
-  return FALSE;
 }
 
 /**
