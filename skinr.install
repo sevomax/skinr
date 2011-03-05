@@ -26,7 +26,7 @@ function skinr_schema() {
         'not null' => TRUE,
         'default' => '',
       ),
-      'sid' => array(
+      'element' => array(
         'description' => 'A unique identifier for this skinr datum.',
         'type' => 'varchar',
         'length' => 128,
@@ -48,11 +48,11 @@ function skinr_schema() {
         'serialize' => TRUE,
       ),
     ),
-    'primary key' => array('theme', 'module', 'sid'),
+    'primary key' => array('theme', 'module', 'element'),
     'indexes' => array(
       'theme' => array('theme'),
       'module' => array('module'),
-      'sid' => array('sid'),
+      'element' => array('element'),
     ),
   );
 
@@ -221,7 +221,7 @@ function skinr_update_7001() {
           'not null' => TRUE,
           'default' => '',
         ),
-        'sid' => array(
+        'element' => array(
           'description' => 'A unique identifier for this skinr datum.',
           'type' => 'varchar',
           'length' => 128,
@@ -243,11 +243,11 @@ function skinr_update_7001() {
           'serialize' => TRUE,
         ),
       ),
-      'primary key' => array('theme', 'module', 'sid'),
+      'primary key' => array('theme', 'module', 'element'),
       'indexes' => array(
         'theme' => array('theme'),
         'module' => array('module'),
-        'sid' => array('sid'),
+        'element' => array('element'),
       ),
     );
     db_create_table('skinr', $schema['skinr']);
@@ -262,13 +262,13 @@ function skinr_update_7001() {
       // Convert from variable to db.
       $theme = substr($variable->name, 6);
       $skinr = variable_get($variable->name, array());
-      foreach ($skinr as $module => $sids) {
-        foreach ($sids as $sid => $skins) {
+      foreach ($skinr as $module => $elements) {
+        foreach ($elements as $element => $skins) {
           db_insert('skinr')
             ->fields(array(
               'theme' => $theme,
               'module' => $module,
-              'sid' => $sid,
+              'element' => $element,
               'skins' => serialize($skins),
               'settings' => serialize(array()),
             ))

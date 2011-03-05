@@ -167,7 +167,7 @@ function views_skinr_data_handler(&$form, $form_state, $theme, $module, $form_se
       $skinr = new stdClass();
       $skinr->theme = $theme;
       $skinr->module = $module;
-      $skinr->sid = $index;
+      $skinr->element = $index;
       $skinr->skins = $skinrs[$theme][$index];
 
       return $skinr;
@@ -197,7 +197,7 @@ function views_skinr_data_handler(&$form, $form_state, $theme, $module, $form_se
 function views_skinr_submit_handler_display(&$form, $form_state, $module, $form_settings) {
   foreach ($form_state['values']['skinr_settings'][$module .'_group'] as $theme_name => $theme) {
     if ((!empty($theme['widgets']) && is_array($theme['widgets'])) || isset($theme['_additional'])) {
-      $sid   = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state);
+      $element = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state);
       $value = array();
 
       if (!empty($theme['widgets']) && is_array($theme['widgets'])) {
@@ -213,8 +213,8 @@ function views_skinr_submit_handler_display(&$form, $form_state, $module, $form_
         }
       }
 
-      if (empty($sid)) {
-        // We didn't receive a valid sid, so raise an error
+      if (empty($element)) {
+        // We didn't receive a valid element, so raise an error
         drupal_set_message(t("Skinr settings weren't saved due to an error."), 'error');
       }
 
@@ -232,7 +232,7 @@ function views_skinr_submit_handler_display(&$form, $form_state, $module, $form_
           }
         }
       }
-      $skinrs[$theme_name][$sid] = $value;
+      $skinrs[$theme_name][$element] = $value;
       ctools_object_cache_set('skinr', $form_state['view']->name, $skinrs);
     }
   }
@@ -246,11 +246,11 @@ function views_skinr_submit_handler_view(&$form, $form_state, $module, $form_set
 
       if ($skinrs = ctools_object_cache_get('skinr', $form_state['view']->name, TRUE)) {
         foreach ($skinrs as $theme_name => $theme) {
-          foreach ($theme as $sid => $skins) {
+          foreach ($theme as $element => $skins) {
             $skinr = new stdClass();
             $skinr->theme = $theme_name;
             $skinr->module = $module;
-            $skinr->sid = $sid;
+            $skinr->element = $element;
             $skinr->skins = $skins;
 
             skinr_skin_save($skinr);
@@ -285,10 +285,10 @@ function views_skinr_preprocess_hook_callback(&$form, $form_state) {
   if (!empty($form_state['view']) && !empty($form_state['view']->name)) {
     $view = $form_state['view'];
   }
-  elseif(isset($form['skinr']['sid']['#value'])) {
-    $sidinfo = _views_skinr_sidinfo($form['skinr']['sid']['#value']);
-    if ($view = views_get_view($sidinfo['view'])) {
-      $view->execute_display($sidinfo['display']);
+  elseif(isset($form['skinr']['element']['#value'])) {
+    $element_info = _views_skinr_element_info($form['skinr']['element']['#value']);
+    if ($view = views_get_view($element_info['view'])) {
+      $view->execute_display($element_info['display']);
     }
   }
 
@@ -306,15 +306,15 @@ function views_skinr_preprocess_hook_callback(&$form, $form_state) {
   return $preprocess_hooks;
 }
 
-function _views_skinr_sidinfo($sid) {
+function _views_skinr_element_info($element) {
   // view-[view_name]-display-[display_name]
-  $pos = strpos($sid, '-display-');
+  $pos = strpos($element, '-display-');
   if ($pos !== FALSE) {
-    $sidinfo = array();
-    $sidinfo['view'] = substr($sid, strlen('view-'), $pos - strlen('view-'));
-    $sidinfo['display'] = substr($sid, $pos + strlen('-display-'));
+    $element_info = array();
+    $element_info['view'] = substr($element, strlen('view-'), $pos - strlen('view-'));
+    $element_info['display'] = substr($element, $pos + strlen('-display-'));
 
-    return $sidinfo;
+    return $element_info;
   }
 
   return FALSE;
@@ -347,15 +347,15 @@ function views_skinr_preprocess_index_handler(&$variables) {
 function views_views_admin_links_alter(&$links, &$view) {
   $default = $view->display_handler->is_defaulted('style_options');
   if ($default) {
-    $sid = 'view-'. $view->name .'-display-default';
+    $element = 'view-'. $view->name .'-display-default';
   }
   else {
-    $sid = 'view-'. $view->name .'-display-'. $view->current_display;
+    $element = 'view-'. $view->name .'-display-'. $view->current_display;
   }
 
   $links[] = array(
-    'title' => skinr_ui_edit_contextual_title('views', $sid),
-    'href' => 'admin/appearance/skinr/edit/nojs/views/' . $sid,
+    'title' => skinr_ui_edit_contextual_title('views', $element),
+    'href' => 'admin/appearance/skinr/edit/nojs/views/' . $element,
     'query' => drupal_get_destination(),
   );
 }

@@ -49,18 +49,18 @@ function skinr_access_handler($op, &$form, $form_state) {
 function skinr_index_handler($op, &$form, $form_state) {
   switch ($op) {
     case 'form':
-      if (empty($form['skinr']['sid']['#value'])) {
+      if (empty($form['skinr']['element']['#value'])) {
         trigger_error(sprintf("The form with form_id '%' is not a valid skinr form.", $form['form_id']['#value']), E_USER_ERROR);
         return FALSE;
       }
-      return $form['skinr']['sid']['#value'];
+      return $form['skinr']['element']['#value'];
 
     case 'submit':
-      if (empty($form_state['values']['sid'])) {
+      if (empty($form_state['values']['element'])) {
         trigger_error(sprintf("The form with form_id '%' is not a valid skinr form.", $form['form_id']['#value']), E_USER_ERROR);
         return FALSE;
       }
-      return $form_state['values']['sid'];
+      return $form_state['values']['element'];
   }
 }
 
@@ -112,7 +112,7 @@ function skinr_submit_handler(&$form, $form_state, $module, $form_settings) {
         $skin = new stdClass();
         $skin->theme = $theme_name;
         $skin->module = $module;
-        $skin->sid = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state);
+        $skin->element = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state);
         $skin->skins = array();
 
         if (!empty($theme['widgets']) && is_array($theme['widgets'])) {
@@ -128,8 +128,8 @@ function skinr_submit_handler(&$form, $form_state, $module, $form_settings) {
           }
         }
 
-        if (empty($skin->sid)) {
-          // We didn't receive a valid sid, so raise an error
+        if (empty($skin->element)) {
+          // We didn't receive a valid element, so raise an error
           drupal_set_message(t("Skinr settings weren't saved due to an error."), 'error');
         }
 

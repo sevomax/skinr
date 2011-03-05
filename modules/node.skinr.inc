@@ -63,7 +63,7 @@ function node_skinr_form_index_handler($op, &$form, $form_state) {
           $skinr = new stdClass();
           $skinr->theme = $theme_name;
           $skinr->module = 'node';
-          $skinr->sid = $form_state['values']['old_type'];
+          $skinr->element = $form_state['values']['old_type'];
           $skinr->skins = array();
 
           skinr_skin_save($skinr);
@@ -87,8 +87,8 @@ function node_skinr_form_index_handler($op, &$form, $form_state) {
 function node_skinr_preprocess_hook_callback(&$form, $form_state) {
   $preprocess_hooks = array();
 
-  if (!isset($form['#node_type']->type) && !empty($form['skinr']['sid']['#value'])) {
-    $preprocess_hooks[] = 'node_' . $form['skinr']['sid']['#value'];
+  if (!isset($form['#node_type']->type) && !empty($form['skinr']['element']['#value'])) {
+    $preprocess_hooks[] = 'node_' . $form['skinr']['element']['#value'];
   }
   else {
     $preprocess_hooks[] = 'node_' . $form['#node_type']->type;

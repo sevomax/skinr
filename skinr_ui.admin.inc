@@ -219,7 +219,7 @@ function skinr_ui_admin_skins() {
   $headers = array(
     'theme' => array('data' => t('Theme'), 'field' => 'theme'),
     'type' => array('data' => t('Type'), 'field' => 'type'),
-    'sid' => array('data' => t('Skinr ID'), 'field' => 'sid'),
+    'element' => array('data' => t('Skinr ID'), 'field' => 'element'),
     'operations' => array('data' => t('Operations')),
   );
 
@@ -231,7 +231,7 @@ function skinr_ui_admin_skins() {
 
   switch ($ts['sql']) {
     case 'type':
-    case 'sid':
+    case 'element':
       $sortby = $ts['sql'];
       break;
 
@@ -262,23 +262,23 @@ function skinr_ui_admin_skins() {
     // skinr_skin_load() could return NULL for this theme.
     if (!empty($skins)) {
       foreach ($skins as $module => $elements) {
-        foreach ($elements as $sid => $skin) {
+        foreach ($elements as $element => $skin) {
           $operations = array(
             'edit' => array(
               'title' => t('edit'),
-              'href' => 'admin/appearance/skinr/edit/nojs/' . $module . '/' . $sid,
+              'href' => 'admin/appearance/skinr/edit/nojs/' . $module . '/' . $element,
               'query' => $destination,
             ),
             'delete' => array(
               'title' => t('delete'),
-              'href' => 'admin/appearance/skinr/delete/'. $theme->name .'/'. $module .'/'. $sid,
+              'href' => 'admin/appearance/skinr/delete/'. $theme->name .'/'. $module .'/'. $element,
               'query' => $destination,
             ),
           );
-          $options[$theme->name . '__' . $module . '__' . $sid] = array(
+          $options[$theme->name . '__' . $module . '__' . $element] = array(
             'theme' => $theme->info['name'],
             'type' => $module,
-            'sid' => $sid,
+            'element' => $element,
             'operations' => array(
               'data' => array(
                 '#theme' => 'links__skinr_operations',
@@ -287,7 +287,7 @@ function skinr_ui_admin_skins() {
               ),
             ),
           );
-          $sorts[] = strip_tags($options[$theme->name . '__' . $module . '__' . $sid][$sortby]);
+          $sorts[] = strip_tags($options[$theme->name . '__' . $module . '__' . $element][$sortby]);
         }
       }
     }
@@ -369,7 +369,7 @@ function skinr_ui_multiple_delete_confirm($form, &$form_state, $skins) {
       '#type' => 'hidden',
       '#value' => $skin,
       '#prefix' => '<li>',
-      '#suffix' => t('Skinr ID %sid of type %type for theme %theme', array('%sid' => $parts[2], '%type' => $parts[1], '%theme' => $themes[$parts[0]]->info['name'])) ."</li>\n",
+      '#suffix' => t('Skinr ID %element of type %type for theme %theme', array('%element' => $parts[2], '%type' => $parts[1], '%theme' => $themes[$parts[0]]->info['name'])) ."</li>\n",
     );
   }
   $form['operation'] = array('#type' => 'hidden', '#value' => 'delete');
@@ -394,7 +394,7 @@ function skinr_ui_multiple_delete_confirm_submit($form, &$form_state) {
       $skin = new StdClass();
       $skin->theme = $parts[0];
       $skin->module = $parts[1];
-      $skin->sid = $parts[2];
+      $skin->element = $parts[2];
       $skin->skins = array();
 
       skinr_skin_save($skin);
@@ -868,8 +868,8 @@ function skinr_ui_export_form($form, &$form_state, $theme = NULL) {
 
     // Convert classes to arrays.
     foreach ($skins as $module => $data) {
-      foreach ($data as $sid => $skin) {
-        $skins[$module][$sid] = (array) $skins[$module][$sid];
+      foreach ($data as $element => $skin) {
+        $skins[$module][$element] = (array) $skins[$module][$element];
       }
     }
 
@@ -1019,15 +1019,15 @@ function skinr_ui_import_form_validate(&$form, &$form_state) {
       // Error.
       form_error($form['skinr_settings'], t('These are not valid Skinr settings.'));
     }
-    foreach ($skins[$module] as $sid => $ignored) {
-      if (!is_array($skins[$module][$sid])) {
+    foreach ($skins[$module] as $element => $ignored) {
+      if (!is_array($skins[$module][$element])) {
         // Error.
         form_error($form['skinr_settings'], t('These are not valid Skinr settings.'));
       }
 
       // Cast skinr array to object so we can actually use it.
-      $skins[$module][$sid] = (object) $skins[$module][$sid];
-      if (!skinr_validate($skins[$module][$sid])) {
+      $skins[$module][$element] = (object) $skins[$module][$element];
+      if (!skinr_validate($skins[$module][$element])) {
         // Error.
         form_error($form['skinr_settings'], t('These are not valid Skinr settings.'));
       }
@@ -1046,7 +1046,7 @@ function skinr_ui_import_form_validate(&$form, &$form_state) {
  */
 function skinr_ui_import_form_submit(&$form, &$form_state) {
   foreach ($form_state['skinrs'] as $module => $skins) {
-    foreach ($skins as $sid => $skin) {
+    foreach ($skins as $element => $skin) {
       if (!skinr_skin_save($skin)) {
         drupal_set_message(t('Skinr settings for the theme %theme could not be saved!', array('%theme' => $form_state['values']['theme'])), 'error');
       }
@@ -1064,12 +1064,12 @@ function skinr_ui_import_form_submit(&$form, &$form_state) {
  *   The name of the theme to delete a setting for.
  * @param $module
  *   The module to delete a setting for.
- * @param $sid
+ * @param $element
  *   The ID of the setting to delete.
  *
  * @ingroup forms
  */
-function skinr_ui_delete_confirm($form, &$form_state, $theme, $module, $sid) {
+function skinr_ui_delete_confirm($form, &$form_state, $theme, $module, $element) {
   $form['theme'] = array(
     '#type' => 'value',
     '#value' => isset($form_state['theme']) ? $form_state['theme'] : $theme,
@@ -1078,9 +1078,9 @@ function skinr_ui_delete_confirm($form, &$form_state, $theme, $module, $sid) {
     '#type' => 'value',
     '#value' => isset($form_state['module']) ? $form_state['module'] : $module,
   );
-  $form['sid'] = array(
+  $form['element'] = array(
     '#type' => 'value',
-    '#value' => isset($form_state['sid']) ? $form_state['sid'] : $sid,
+    '#value' => isset($form_state['element']) ? $form_state['element'] : $element,
   );
 
   $themes = list_themes();
@@ -1088,7 +1088,7 @@ function skinr_ui_delete_confirm($form, &$form_state, $theme, $module, $sid) {
   return confirm_form($form,
     t('Are you sure you want to delete these Skinr settings?'),
     isset($_GET['destination']) ? $_GET['destination'] : 'admin/appearance/skinr',
-    t('This action cannot be undone.<br /> Theme: !theme<br />Module: !module<br />Skinr ID: !sid', array('!theme' => $themes[$theme]->info['name'], '!module' => $module, '!sid' => $sid)),
+    t('This action cannot be undone.<br /> Theme: !theme<br />Module: !module<br />Skinr ID: !element', array('!theme' => $themes[$theme]->info['name'], '!module' => $module, '!element' => $element)),
     t('Delete'),
     t('Cancel')
   );
@@ -1102,7 +1102,7 @@ function skinr_ui_delete_confirm_submit($form, &$form_state) {
     $skin = new stdClass();
     $skin->theme = $form_state['values']['theme'];
     $skin->module = $form_state['values']['module'];
-    $skin->sid = $form_state['values']['sid'];
+    $skin->element = $form_state['values']['element'];
     $skin->skins = array();
     $skin->settings = array();
 

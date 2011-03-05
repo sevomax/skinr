@@ -89,14 +89,14 @@ function skinr_preprocess(&$variables, $hook) {
   foreach ($config as $module => $module_settings) {
     if (!empty($module_settings['preprocess'][$original_hook])) {
       $preprocess_settings = $module_settings['preprocess'][$original_hook];
-      $sids = skinr_handler('preprocess_index_handler', 'preprocess', $preprocess_settings['index_handler'], $variables);
-      if (!is_array($sids)) {
-        $sids = array($sids);
+      $elements = skinr_handler('preprocess_index_handler', 'preprocess', $preprocess_settings['index_handler'], $variables);
+      if (!is_array($elements)) {
+        $elements = array($elements);
       }
 
       $applied_skins = array();
-      foreach ($sids as $sid) {
-        if ($skin = skinr_skin_load($current_theme, $module, $sid)) {
+      foreach ($elements as $element) {
+        if ($skin = skinr_skin_load($current_theme, $module, $element)) {
           $applied_skins = $skin->skins + $applied_skins;
         }
       }
@@ -109,7 +109,7 @@ function skinr_preprocess(&$variables, $hook) {
         'variables' => &$variables,
         'theme' => $current_theme,
         'module' => $module,
-        'sids' => $sids,
+        'elements' => $elements,
         'options' => $applied_skins,
       );
       drupal_alter('skinr_preprocess', $context);
@@ -251,7 +251,7 @@ function skinr_rule_delete($rid) {
       ->execute();
     db_delete('skinr')
       ->condition('module', 'page')
-      ->condition('sid', $rule->rid)
+      ->condition('element', $rule->rid)
       ->execute();
   }
 }
@@ -489,7 +489,7 @@ function skinr_include_once($file) {
  *   TRUE on success, FALSE on failure.
  */
 function skinr_skin_validate(&$skin) {
-  if (!isset($skin->theme) || !isset($skin->module) || !isset($skin->sid) || !isset($skin->skins)) {
+  if (!isset($skin->theme) || !isset($skin->module) || !isset($skin->element) || !isset($skin->skins)) {
     return FALSE;
   }
   if (!isset($skin->settings)) {
@@ -525,14 +525,14 @@ function skinr_skin_save($skin) {
     db_delete('skinr')
       ->condition('theme', $skin->theme)
       ->condition('module', $skin->module)
-      ->condition('sid', $skin->sid)
+      ->condition('element', $skin->element)
       ->execute();
   }
   else {
     // Let's save the data.
-    if (skinr_skin_load($skin->theme, $skin->module, $skin->sid) !== FALSE) {
+    if (skinr_skin_load($skin->theme, $skin->module, $skin->element) !== FALSE) {
       // Record exists, so let's update.
-      drupal_write_record('skinr', $skin, array('theme', 'module', 'sid'));
+      drupal_write_record('skinr', $skin, array('theme', 'module', 'element'));
     }
     else {
       // Insert a new record.
@@ -551,11 +551,11 @@ function skinr_skin_save($skin) {
  *   current theme will be used.
  * @param $module
  *   The module.
- * @param $sid
+ * @param $element
  *   The element ID.
  */
-function skinr_skin_delete($theme = NULL, $module = NULL, $sid = NULL) {
-  node_delete_multiple(array(array($theme, $module, $sid)));
+function skinr_skin_delete($theme = NULL, $module = NULL, $element = NULL) {
+  node_delete_multiple(array(array($theme, $module, $element)));
 }
 
 /**
@@ -565,7 +565,7 @@ function skinr_skin_delete($theme = NULL, $module = NULL, $sid = NULL) {
  *   An array of arrays containing the following arguments:
  *   - $theme
  *   - $module
- *   - $sid
+ *   - $element
  *
  * @see skinr_skin_delete().
  *
@@ -581,63 +581,63 @@ function skinr_skin_delete_multiple($arguments) {
  *   The theme of the skin. Defaults to the current theme.
  * @param $module
  *   The module of the skin.
- * @param $sid
+ * @param $element
  *   The element ID of the skin.
  *
  * @return
- *   A skin object if both $module and $sid are specified. An array of skins
+ *   A skin object if both $module and $element are specified. An array of skins
  *   if only $module is specified. An array of all skins for a theme if neither
- *   $module nor $sid is specified. FALSE on failure.
+ *   $module nor $element is specified. FALSE on failure.
  *
  * @todo Rename $skin->skins to $skin->options throughout the module.
  */
-function skinr_skin_load($theme = NULL, $module = NULL, $sid = NULL) {
+function skinr_skin_load($theme = NULL, $module = NULL, $element = NULL) {
   $skins = &drupal_static(__FUNCTION__, array());
 
   if (!isset($theme)) {
     $theme = skinr_current_theme();
   }
 
-  // @todo This condition is always FALSE when no $sid is passed.
-  if (!isset($skins[$theme][$module][$sid])) {
+  // @todo This condition is always FALSE when no $element is passed.
+  if (!isset($skins[$theme][$module][$element])) {
     $skins += array($theme => array());
     if (isset($module)) {
       $skins[$theme] += array($module => array());
     }
 
     $query = db_select('skinr', 's')
-      ->fields('s', array('theme', 'module', 'sid', 'settings', 'skins'));
+      ->fields('s', array('theme', 'module', 'element', 'settings', 'skins'));
     if (isset($theme)) {
       $query->condition('theme', $theme);
     }
     if (isset($module)) {
       $query->condition('module', $module);
     }
-    if (isset($sid)) {
-      $query->condition('sid', $sid);
+    if (isset($element)) {
+      $query->condition('element', $element);
     }
     foreach ($query->execute() as $skin) {
       $skin->settings = unserialize($skin->settings);
       $skin->skins = unserialize($skin->skins);
-      $skins[$skin->theme][$skin->module][$skin->sid] = $skin;
+      $skins[$skin->theme][$skin->module][$skin->element] = $skin;
     }
   }
 
   // Return all skins for the passed theme.
-  if (!isset($module) && !isset($sid)) {
+  if (!isset($module) && !isset($element)) {
     if (isset($skins[$theme])) {
       return $skins[$theme];
     }
   }
   // Return all skins for the passed module.
-  elseif (!isset($sid)) {
+  elseif (!isset($element)) {
     if (isset($skins[$theme][$module])) {
       return $skins[$theme][$module];
     }
   }
   // Return the requested skin.
-  elseif (isset($skins[$theme][$module][$sid])) {
-    return $skins[$theme][$module][$sid];
+  elseif (isset($skins[$theme][$module][$element])) {
+    return $skins[$theme][$module][$element];
   }
   return FALSE;
 }
@@ -649,7 +649,7 @@ function skinr_skin_load($theme = NULL, $module = NULL, $sid = NULL) {
  *   An array of arrays containing the following arguments:
  *   - $theme
  *   - $module
- *   - $sid
+ *   - $element
  *
  * @see skinr_skin_load().
  *

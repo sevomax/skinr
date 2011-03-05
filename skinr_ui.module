@@ -134,7 +134,7 @@ function skinr_ui_menu() {
     'title callback' => 'skinr_ui_edit_title',
     'title arguments' => array(5, 6),
     'page callback' => 'skinr_ui_edit',
-    'page arguments' => array(4, 5, 6), // js|nojs, module, sid
+    'page arguments' => array(4, 5, 6), // js|nojs, module, element
     'type' => MENU_CALLBACK,
     'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
     'access arguments' => array('edit skin settings'),
@@ -151,7 +151,7 @@ function skinr_ui_menu() {
   $items['admin/appearance/skinr/delete/%/%/%'] = array(
     'title' => 'Delete skin',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('skinr_ui_delete_confirm', 4, 5, 6), // theme, module, sid
+    'page arguments' => array('skinr_ui_delete_confirm', 4, 5, 6), // theme, module, element
     'type' => MENU_CALLBACK,
     'access arguments' => array('administer skinr'),
     'file' => 'skinr_ui.admin.inc',
@@ -255,27 +255,27 @@ function skinr_ui_help($path, $arg) {
  *
  * @param $module
  *   The module that we're editing settings of.
- * @param $sid
- *   The sid of the object we're editing settings of.
+ * @param $element
+ *   The element we're editing settings of.
  */
-function skinr_ui_edit_title($module, $sid) {
-  return t('Skinr settings for !module type !sid', array('!module' => $module, '!sid' => $sid));
+function skinr_ui_edit_title($module, $element) {
+  return t('Skinr settings for !module type !element', array('!module' => $module, '!element' => $element));
 }
 
 /**
  * Menu title callback; sets the title for a Skinr settings form page.
  *
  * @param $module
- *   The module that we're editing settings of.
- * @param $sid
- *   The sid of the object we're editing settings of.
+ *   The module that we're editing settings for.
+ * @param $element
+ *   The element we're editing settings for.
  */
-function skinr_ui_edit_contextual_title($module, $sid) {
+function skinr_ui_edit_contextual_title($module, $element) {
   $contextual_links = skinr_ui_get_contextual_links();
   foreach ($contextual_links as $hook => $links) {
     $counter = 1;
     foreach ($links as $link) {
-      if ($link[1][0] == $module && $link[1][1] == $sid) {
+      if ($link[1][0] == $module && $link[1][1] == $element) {
         if (count($links) > 1) {
           return t('Edit skin !number', array('!number' => $counter));
         }
@@ -294,13 +294,13 @@ function skinr_ui_edit_contextual_title($module, $sid) {
  *   TRUE if called from javascript, FALSE otherwise.
  * @param $module
  *   The module that we're editing settings of.
- * @param $sid
- *   The sid of the object we're editing settings of.
- * @param $sids
- *   An array of $sid when more than one is returned from the preprocess
+ * @param $element
+ *   The element of the object we're editing settings of.
+ * @param $elements
+ *   An array of $element when more than one is returned from the preprocess
  *   index handler. Used by the javascript UI to update all elements involved.
  */
-function skinr_ui_edit($js = FALSE, $module, $sid, $sids = NULL) {
+function skinr_ui_edit($js = FALSE, $module, $element, $elements = NULL) {
   if ($js) {
     // Do additional ajax related stuff.
   }
@@ -308,8 +308,8 @@ function skinr_ui_edit($js = FALSE, $module, $sid, $sids = NULL) {
   $arguments = array(
     'skinr' => array(
       'module' => $module,
-      'sid' => $sid,
-      'sids' => $sids,
+      'element' => $element,
+      'elements' => $elements,
     ),
   );
   return drupal_get_form('skinr_ui_form', $arguments);
@@ -332,14 +332,14 @@ function skinr_ui_form($form, &$form_state, $arguments) {
     '#type' => 'hidden',
     '#value' => !empty($form_state['skinr']['module']) ? $form_state['skinr']['module'] : $arguments['skinr']['module'],
   );
-  $form['skinr']['sid'] = array(
+  $form['skinr']['element'] = array(
     '#type' => 'hidden',
-    '#value' => !empty($form_state['skinr']['sid']) ? $form_state['skinr']['sid'] : $arguments['skinr']['sid'],
+    '#value' => !empty($form_state['skinr']['element']) ? $form_state['skinr']['element'] : $arguments['skinr']['element'],
   );
-  if (!empty($form_state['skinr']['sids']) || !empty($arguments['skinr']['sids'])) {
-    $form['skinr']['sids'] = array(
+  if (!empty($form_state['skinr']['elements']) || !empty($arguments['skinr']['elements'])) {
+    $form['skinr']['elements'] = array(
       '#type' => 'hidden',
-      '#value' => !empty($form_state['skinr']['sids']) ? $form_state['skinr']['sids'] : $arguments['skinr']['sids'],
+      '#value' => !empty($form_state['skinr']['elements']) ? $form_state['skinr']['elements'] : $arguments['skinr']['elements'],
     );
   }
 
