@@ -109,7 +109,7 @@ Drupal.behaviors.SkinrLivePreview = {
       }
 
       var $name = $(this).attr('name');
-      $name = $name.replace(/skinr_settings\[.*_group\]\[[^\]]*\]\[widgets\]\[([^\]]*)\]/, '$1');
+      $name = $name.replace(/skinr_settings\[.*_group\]\[[^\]]*\]\[([^\]]*)\]/, '$1');
 
       var $classes = '';
       var $add_classes = $(this).val();

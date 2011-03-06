@@ -29,7 +29,7 @@ function skinr_ui_permission() {
 function skinr_ui_menu() {
   $items['admin/appearance/skinr'] = array(
     'title' => 'Skinr',
-    'description' => 'Manage your skinr settings and rules, import and export skinr settings for each theme, and configure skinr\'s overlay settings.',
+    'description' => 'Manage your skin configurations and rules, import and export skin configurations.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('skinr_ui_list'),
     'access arguments' => array('administer skinr'),
@@ -38,7 +38,7 @@ function skinr_ui_menu() {
   );
   $items['admin/appearance/skinr/list'] = array(
     'title' => 'List',
-    'description' => t('Manage Skinr settings.'),
+    'description' => t('Manage skinr configurations.'),
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
   );
@@ -46,7 +46,7 @@ function skinr_ui_menu() {
   // Themes.
   $items['admin/appearance/skinr/skins'] = array(
     'title' => 'Skins',
-    'description' => 'Manage which skins are available when changing Skinr settings.',
+    'description' => 'Manage which skins are available when applying a skin configuration.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('skinr_ui_admin_skin_infos'),
     'access arguments' => array('administer skinr'),
@@ -63,7 +63,7 @@ function skinr_ui_menu() {
     'title' => 'Skin settings',
     'title callback' => 'skinr_ui_skin_info_title',
     'title arguments' => array(5),
-    'description' => 'Manage which options are available for each Skin when changing Skinr settings.',
+    'description' => 'Manage which options are available for each skin when applying a skin configuration.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('skinr_ui_admin_skin_infos_settings', 5),
     'access arguments' => array('administer skinr'),
@@ -114,7 +114,7 @@ function skinr_ui_menu() {
     'type' => MENU_LOCAL_TASK,
     'access arguments' => array('administer skinr'),
     'weight' => 2,
-    'description' => t('Import Skinr settings.'),
+    'description' => t('Import skin configurations.'),
     'file' => 'skinr_ui.admin.inc',
   );
   $items['admin/appearance/skinr/export'] = array(
@@ -124,11 +124,11 @@ function skinr_ui_menu() {
     'type' => MENU_LOCAL_TASK,
     'access arguments' => array('administer skinr'),
     'weight' => 3,
-    'description' => t('Export Skinr settings.'),
+    'description' => t('Export skin configurations.'),
     'file' => 'skinr_ui.admin.inc',
   );
 
-  // Edit Skinr settings.
+  // Configure skin settings for an element.
   $items['admin/appearance/skinr/edit/%skinr_js/%/%'] = array(
     'title' => 'Edit skin',
     'title callback' => 'skinr_ui_edit_title',
@@ -147,11 +147,11 @@ function skinr_ui_menu() {
     'context' => MENU_CONTEXT_INLINE,
   );
 
-  // Delete Skinr settings.
-  $items['admin/appearance/skinr/delete/%/%/%'] = array(
+  // Delete a skin configuration.
+  $items['admin/appearance/skinr/delete/%skinr_skin'] = array(
     'title' => 'Delete skin',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('skinr_ui_delete_confirm', 4, 5, 6), // theme, module, element
+    'page arguments' => array('skinr_ui_delete_confirm', 4),
     'type' => MENU_CALLBACK,
     'access arguments' => array('administer skinr'),
     'file' => 'skinr_ui.admin.inc',
@@ -237,21 +237,21 @@ function skinr_ui_help($path, $arg) {
   }
   switch ($path) {
     case 'admin/appearance/skinr':
-      return  '<p>' . t('Below is a list of all Skinr settings in use on this site.') . '</p>' . $advanced_help;
+      return  '<p>' . t('Below is a list of all skin configurations in use on this site.') . '</p>' . $advanced_help;
     case 'admin/appearance/skinr/rule':
       return  '<p>' . t('Below is a list of Skinr rules. Rules can be created for <em>region</em> and <em>page</em> elements.  Start by creating a new rule.') . '</p>';
     case 'admin/appearance/skinr/rule/add':
       return  '<p>' . t('Choose the type of rule you wish to create. Page rules apply classes to the &lt;body&gt; tag. Region rules apply to the region wrapper &lt;div&gt; tag.') . '</p>';
     case 'admin/appearance/skinr/import':
-      return  '<p>' . t('To import Skinr settings, ensure the correct theme is selected, paste exported code and click the "Import" button.') . '</p>';
+      return  '<p>' . t('To import skin configurations, ensure the correct theme is selected, paste exported code and click the "Import" button.') . '</p>';
     case 'admin/appearance/skinr/export':
-      return  '<p>' . t('To export Skinr settings, ensure the correct theme is selected and click the "Export" button.') . '</p>';
+      return  '<p>' . t('To export skin configurations, ensure the correct theme is selected and click the "Export" button.') . '</p>';
       break;
   }
 }
 
 /**
- * Menu title callback; sets the title for a Skinr settings form page.
+ * Menu title callback; sets the title for a skins configuration form page.
  *
  * @param $module
  *   The module that we're editing settings of.
@@ -259,11 +259,11 @@ function skinr_ui_help($path, $arg) {
  *   The element we're editing settings of.
  */
 function skinr_ui_edit_title($module, $element) {
-  return t('Skinr settings for !module type !element', array('!module' => $module, '!element' => $element));
+  return t('Skin settings for !module type !element', array('!module' => $module, '!element' => $element));
 }
 
 /**
- * Menu title callback; sets the title for a Skinr settings form page.
+ * Menu title callback; sets the title for a skins configuration form page.
  *
  * @param $module
  *   The module that we're editing settings for.
@@ -316,7 +316,7 @@ function skinr_ui_edit($js = FALSE, $module, $element, $elements = NULL) {
 }
 
 /**
- * Form builder for the skinr settings configuration form.
+ * Form builder for the skins configuration form.
  *
  * @param $arguments
  *   An array of arguments as passed in by skinr_ui_edit().
@@ -417,19 +417,20 @@ function skinr_ui_form_alter(&$form, $form_state, $form_id) {
         }
 
         if (!$form_state['submitted']) {
-          if ($skin = skinr_handler('data_handler', 'form', $form_settings['data_handler'], $form, $form_state, $theme->name, $module, $form_settings)) {
-            $defaults  = $skin->skins['_options'];
-            $additional_default = isset($skin->skins['_additional']) ? $skin->skins['_additional'] : '';
+          if ($skins = skinr_handler('data_handler', 'form', $form_settings['data_handler'], $form, $form_state, $theme->name, $module, $form_settings)) {
+            $defaults = array();
+            foreach ($skins as $skin) {
+              $defaults[$skin->skin] = $skin->options;
+            }
           }
           else {
-            $defaults  = array();
-            $additional_default = '';
+            $defaults = array();
           }
         }
         else {
           // Handle preview before submit.
-          $defaults  = $form_state['values']['widgets'];
-          $additional_default = $form_state['values']['_additional'];
+          // @todo Is this still needed? If so, it needs to be fixed.
+          $defaults = $form_state['values'];
         }
 
         if (!isset($form['skinr_settings'][$module . '_group'])) {
@@ -510,30 +511,31 @@ function skinr_ui_form_alter(&$form, $form_state, $form_id) {
             }
           }
           if (empty($skin_info['group']) || empty($groups[$skin_info['group']])) {
-            $form['skinr_settings'][$module . '_group'][$theme->name]['widgets'][$skin_name] = $field;
+            $form['skinr_settings'][$module . '_group'][$theme->name][$skin_name] = $field;
           }
           else {
-            if (!isset($form['skinr_settings'][$module . '_group'][$theme->name]['widgets'][$skin_info['group']])) {
+            if (!isset($form['skinr_settings'][$module . '_group'][$theme->name][$skin_info['group']])) {
               $group = $groups[$skin_info['group']];
-              $form['skinr_settings'][$module . '_group'][$theme->name]['widgets'][$skin_info['group']] = array(
+              $form['skinr_settings'][$module . '_group'][$theme->name][$skin_info['group']] = array(
                 '#type' => 'fieldset',
                 '#title' => t($group['title']),
                 '#description' => t($group['description']),
                 '#weight' => isset($group['weight']) ? $group['weight'] : NULL,
               );
             }
-            $form['skinr_settings'][$module . '_group'][$theme->name]['widgets'][$skin_info['group']][$skin_name] = $field;
+            $form['skinr_settings'][$module . '_group'][$theme->name][$skin_info['group']][$skin_name] = $field;
           }
         }
 
         // Check for access.
         if (skinr_handler('access_handler', 'edit advanced skin settings', $form_settings['access_handler'], $form, $form_state)) {
+          $skin_name = '_additional';
           $form['skinr_settings'][$module . '_group'][$theme->name]['_additional'] = array(
             '#type' => 'textfield',
             '#title' => t('CSS classes'),
             '#size' => 40,
             '#description' => t('To add CSS classes manually, enter classes separated by a single space i.e. <code>first-class second-class</code>'),
-            '#default_value' => $additional_default,
+            '#default_value' => isset($defaults[$skin_name]) ? $defaults[$skin_name] : '',
           );
 
           // Only add validation handler once.
@@ -599,10 +601,10 @@ function skinr_ui_form_validate($form, &$form_state) {
       if (isset($module_settings['form'][$form_id]) && isset($form_state['values']['skinr_settings'][$module . '_group'])) {
         foreach ($form_state['values']['skinr_settings'][$module . '_group'] as $theme_name => $theme) {
           foreach ($groups as $group_name => $group) {
-            if (!empty($theme['widgets'][$group_name]) && is_array($theme['widgets'][$group_name])) {
-              $group_values = $theme['widgets'][$group_name];
-              unset($form_state['values']['skinr_settings'][$module . '_group'][$theme_name]['widgets'][$group_name]);
-              $form_state['values']['skinr_settings'][$module . '_group'][$theme_name]['widgets'] = array_merge($form_state['values']['skinr_settings'][$module . '_group'][$theme_name]['widgets'], $group_values);
+            if (!empty($theme[$group_name]) && is_array($theme[$group_name])) {
+              $group_values = $theme[$group_name];
+              unset($form_state['values']['skinr_settings'][$module . '_group'][$theme_name][$group_name]);
+              $form_state['values']['skinr_settings'][$module . '_group'][$theme_name] = array_merge($form_state['values']['skinr_settings'][$module . '_group'][$theme_name], $group_values);
             }
           }
         }
