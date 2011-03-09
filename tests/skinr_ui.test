@@ -171,9 +171,34 @@ class SkinrUIAdminTestCase extends SkinrUITestCase {
 
     // Verify that it is enabled for the skinr_test_subtheme, and disabled for
     // Bartik and Garland by default.
-    $this->assertFieldChecked('edit-skins-skinr-test-subtheme-skinr-test-basetheme-enable', 'skinr_test_basetheme skin is enabled for skinr_test_subtheme.');
-    $this->assertNoFieldChecked('edit-skins-bartik-skinr-test-basetheme-enable', 'skinr_test_basetheme skin is disabled for Bartik.');
-    $this->assertNoFieldChecked('edit-skins-garland-skinr-test-basetheme-enable', 'skinr_test_basetheme skin is disabled for Garland.');
+    $this->assertFieldChecked('edit-status-skinr-test-subtheme', 'skinr_test_basetheme skin is enabled for skinr_test_subtheme.');
+    $this->assertNoFieldChecked('edit-status-bartik', 'skinr_test_basetheme skin is disabled for Bartik.');
+    $this->assertNoFieldChecked('edit-status-garland', 'skinr_test_basetheme skin is disabled for Garland.');
+
+    // Override the status for skinr_test_subtheme and Bartik, then verify them.
+    $skin = (object) array(
+      'theme' => 'skinr_test_subtheme',
+      'module' => 'block',
+      'element' => 'system-user-menu',
+      'skin' => 'skinr_test_subtheme',
+      'options' => array('option1', 'option2'),
+      'status' => 1,
+    );
+    skinr_skin_save($skin);
+    $skin = skinr_skin_load($skin->sid);
+
+    // Override the default skin.
+    $skin->element = 'system-main';
+    $this->drupalGet('admin/appearance/skinr/disable/' . $skin->sid);
+    // Unaltered skin configuration object should have been saved with only the status updated.
+    $skin = entity_load_unchanged('skinr_skin', $skin->sid);
+    $this->assertFalse($skin->status, 'Status was disabled successfully.');
+    $this->assertTrue($skin->element == 'system-user-menu', 'Only status was updated, even though the object was modified before updating status.');
+
+    // Enable the skin configuration.
+    $this->drupalGet('admin/appearance/skinr/enable/' . $skin->sid);
+    $skin = entity_load_unchanged('skinr_skin', $skin->sid);
+    $this->assertTrue($skin->status, 'Status was enabled successfully.');
   }
 
   /**
@@ -195,7 +220,7 @@ class SkinrUIAdminTestCase extends SkinrUITestCase {
    */
   function testSkinListing() {
     $skin = (object) array(
-      'theme' => 'skinr_test_basetheme',
+      'theme' => 'skinr_test_subtheme',
       'module' => 'block',
       'element' => 'system-user-menu',
       'skin' => 'skinr_test_subtheme',

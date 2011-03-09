@@ -135,21 +135,18 @@ function skinr_preprocess(&$variables, $hook) {
         if (!empty($applied_skins['_options'])) {
           foreach ($applied_skins['_options'] as $skin_name => $skin_options) {
             // Make sure this skin is enabled for the current theme.
-            // @todo Checking for status should probably happen somewhere upstream.
-            if (!empty($skin_info[$skin_name]['status'][$current_theme])) {
-              if (isset($skin_info[$skin_name]['attached'])) {
-                $elements['#attached'] = $skin_info[$skin_name]['attached'];
-                drupal_process_attached($elements);
-              }
+            if (isset($skin_info[$skin_name]['attached'])) {
+              $elements['#attached'] = $skin_info[$skin_name]['attached'];
+              drupal_process_attached($elements);
+            }
 
-              if (!is_array($skin_options)) {
-                $skin_options = array($skin_options);
-              }
-              foreach ($skin_options as $skin_option) {
-                if (isset($skin_info[$skin_name]['options'][$skin_option]['attached'])) {
-                  $elements['#attached'] = $skin_info[$skin_name]['options'][$skin_option]['attached'];
-                  drupal_process_attached($elements);
-                }
+            if (!is_array($skin_options)) {
+              $skin_options = array($skin_options);
+            }
+            foreach ($skin_options as $skin_option) {
+              if (isset($skin_info[$skin_name]['options'][$skin_option]['attached'])) {
+                $elements['#attached'] = $skin_info[$skin_name]['options'][$skin_option]['attached'];
+                drupal_process_attached($elements);
               }
             }
           }
@@ -826,6 +823,32 @@ function skinr_skin_info_status_default($skin_info) {
 }
 
 /**
+ * Retrieve the overridden status of a skin.
+ *
+ * @param $skin_info
+ *   Information about a registered skin.
+ *
+ * @return
+ *   An array of statuses for each enabled theme. If no overrides are found,
+ *   the status defaults will be returned.
+ */
+function skinr_skin_info_status_get($skin_info) {
+  return variable_get('skinr_skin_' . $skin_info['name'] . '_status', $skin_info['status']);
+}
+
+/**
+ * Set the status of a skin. Overrides the skin plugin settings.
+ *
+ * @param $skin_info
+ *   Information about a registered skin.
+ * @param $status
+ *   An array of statuses for each theme.
+ */
+function skinr_skin_info_status_set($skin_info, $status) {
+  variable_set('skinr_skin_' . $skin_info['name'] . '_status', $status);
+}
+
+/**
  * Helper function to prepend a path to an array of stylesheet or script filenames.
  *
  * If the url is absolute (e.g. the url start with 'http://' or 'https://')
@@ -1201,4 +1224,3 @@ function skinr_themes_enabled() {
 function skinr_themes_disabled() {
   skinr_cache_reset();
 }
-

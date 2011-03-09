@@ -65,7 +65,7 @@ function skinr_ui_menu() {
     'title arguments' => array(5),
     'description' => 'Manage which options are available for each skin when applying a skin configuration.',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('skinr_ui_admin_skin_infos_settings', 5),
+    'page arguments' => array('skinr_ui_admin_skin_info_settings', 5),
     'access arguments' => array('administer skinr'),
     'file' => 'skinr_ui.admin.inc',
     'type' => MENU_LOCAL_TASK,
@@ -147,6 +147,26 @@ function skinr_ui_menu() {
     'context' => MENU_CONTEXT_INLINE,
   );
 
+  // Enable a skin configuration.
+  $items['admin/appearance/skinr/enable/%skinr_skin'] = array(
+    'title' => 'Enable skin',
+    'page callback' => 'skinr_ui_skin_status_set',
+    'page arguments' => array(4, TRUE),
+    'type' => MENU_CALLBACK,
+    'access arguments' => array('administer skinr'),
+    'file' => 'skinr_ui.admin.inc',
+  );
+
+  // Disable a skin configuration.
+  $items['admin/appearance/skinr/disable/%skinr_skin'] = array(
+    'title' => 'Disable skin',
+    'page callback' => 'skinr_ui_skin_status_set',
+    'page arguments' => array(4, FALSE),
+    'type' => MENU_CALLBACK,
+    'access arguments' => array('administer skinr'),
+    'file' => 'skinr_ui.admin.inc',
+  );
+
   // Delete a skin configuration.
   $items['admin/appearance/skinr/delete/%skinr_skin'] = array(
     'title' => 'Delete skin',
@@ -167,6 +187,22 @@ function skinr_ui_menu() {
   );
 
   return $items;
+}
+
+/**
+ * Menu callback; Updates the skin configuration's status.
+ */
+function skinr_ui_skin_status_set($skin, $status) {
+  $skin = entity_load_unchanged('skinr_skin', $skin->sid);
+  // Let's save some time in skinr_skin_save() by settings $skin_>original here.
+  $skin->orginal = clone($skin);
+
+  // Update the status and save the skin configuration.
+  $skin->status = $status ? 1 : 0;
+  skinr_skin_save($skin);
+
+  // Return to the skin configuration overview page.
+  drupal_goto('admin/appearance/skinr');
 }
 
 /**
@@ -210,16 +246,8 @@ function skinr_ui_theme() {
       'variables' => array('name' => NULL, 'description' => NULL),
       'file' => 'skinr_ui.admin.inc',
     ),
-    'skinr_ui_admin_skin_infos_incompatible' => array(
-      'variables' => array('message' => NULL),
-      'file' => 'skinr_ui.admin.inc',
-    ),
-    'skinr_ui_admin_skin_infos_settings_fieldset' => array(
-      'render element' => 'form',
-      'file' => 'skinr_ui.admin.inc',
-    ),
-    'skinr_ui_admin_skin_infos_settings_summary' => array(
-      'variables' => array('name' => NULL, 'description' => NULL, 'theme hooks' => NULL),
+    'skinr_ui_admin_dl' => array(
+      'variables' => array('definitions' => NULL, 'attributes' => array()),
       'file' => 'skinr_ui.admin.inc',
     ),
   );
@@ -243,7 +271,7 @@ function skinr_ui_help($path, $arg) {
     case 'admin/appearance/skinr/rule/add':
       return  '<p>' . t('Choose the type of rule you wish to create. Page rules apply classes to the &lt;body&gt; tag. Region rules apply to the region wrapper &lt;div&gt; tag.') . '</p>';
     case 'admin/appearance/skinr/import':
-      return  '<p>' . t('To import skin configurations, ensure the correct theme is selected, paste exported code and click the "Import" button.') . '</p>';
+      return  '<p>' . t('To import skin configurations, paste exported code and click the "Import" button.') . '</p>';
     case 'admin/appearance/skinr/export':
       return  '<p>' . t('To export skin configurations, ensure the correct theme is selected and click the "Export" button.') . '</p>';
       break;
@@ -362,8 +390,13 @@ function skinr_ui_form_alter(&$form, $form_state, $form_id) {
   }
 
   $config = skinr_get_config_info();
-  $skin_infos = skinr_get_skin_info();
   $groups = skinr_get_group_info();
+  $skin_infos = skinr_get_skin_info();
+
+  // Apply overridden status to skins.
+  foreach ($skin_infos as $skin_name => $skin_info) {
+    $skin_infos[$skin_name]['status'] = skinr_skin_info_status_get($skin_infos[$skin_name]);
+  }
 
   foreach ($config as $module => $module_settings) {
     if (isset($module_settings['form'][$form_id])) {
