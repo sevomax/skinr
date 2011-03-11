@@ -497,42 +497,6 @@ function skinr_include_once($file) {
 // Skinr data handling functions.
 
 /**
- * Controller class for skin configurations.
- *
- * This extends the DrupalDefaultEntityController class, adding required
- * special handling for skin configuration objects.
- */
-class SkinrSkinController extends DrupalDefaultEntityController {
-
-  function attachLoad(&$queried_entities, $revision_id = FALSE) {
-    foreach ($queried_entities as $key => $record) {
-      $queried_entities[$key]->options = unserialize($record->options);
-    }
-
-    // Call the default attachLoad() method.
-    parent::attachLoad($queried_entities, $revision_id);
-  }
-}
-
-/**
- * Implements hook_entity_info().
- */
-function skinr_entity_info() {
-  $return['skinr_skin'] = array(
-    'label' => t('Skin configuration'),
-    'controller class' => 'SkinrSkinController',
-    'base table' => 'skinr_skins',
-    'uri callback' => 'skinr_skin_uri',
-    'entity keys' => array(
-      'id' => 'sid',
-    ),
-    'view modes' => array(),
-  );
-
-  return $return;
-}
-
-/**
  * Validate a skinr object.
  *
  * @param $skin
@@ -567,40 +531,40 @@ function skinr_skin_validate(&$skin) {
  * @return
  *   TRUE on success, FALSE on failure.
  */
-function skinr_skin_save($skin) {
+function skinr_skin_save(&$skin) {
   // Make sure we're getting valid data.
   if (!skinr_skin_validate($skin)) {
     return FALSE;
   }
 
-  // Load the stored entity, if any.
+  // Load the stored skin configuration object, if any.
   if (!empty($skin->sid)) {
     if (!isset($skin->original)) {
-      $skin->original = entity_load_unchanged('skinr_skin', $skin->sid);
+      // Load an uncached version of the skin configuration object.
+      $skin->original = skinr_skin_load_unchanged($skin->sid);
     }
   }
 
   // Let modules modify the node before it is saved to the database.
   module_invoke_all('skinr_skin_presave', $skin);
-  module_invoke_all('entity_presave', $skin, 'skinr_skin');
 
   if (!empty($skin->sid)) {
     // Record exists, so let's update.
     $status = drupal_write_record('skinr_skins', $skin, 'sid');
     module_invoke_all('skinr_skin_update', $skin);
-    module_invoke_all('entity_update', $skin, 'skinr_skin');
   }
   else {
     // Insert a new record.
     $status = drupal_write_record('skinr_skins', $skin);
     module_invoke_all('skinr_skin_insert', $skin);
-    module_invoke_all('entity_insert', $skin, 'skinr_skin');
   }
 
   // Clear internal properties.
   unset($skin->original);
   // Clear the static loading cache.
-  entity_get_controller('skinr_skin')->resetCache(array($skin->sid));
+  // @todo If we have a more granular reset for skinr_skin_load_multiple(), we
+  //   need to use it here.
+  drupal_static_reset('skinr_skin_load_multiple');
 
   return $status;
 }
@@ -629,7 +593,6 @@ function skinr_skin_delete_multiple($sids) {
     try {
       foreach ($skins as $sid => $skin) {
         module_invoke_all('skinr_skin_delete', $skin);
-        module_invoke_all('entity_delete', $skin, 'skinr_skin');
       }
 
       // Delete after calling hooks so that they can query node tables as needed.
@@ -644,48 +607,118 @@ function skinr_skin_delete_multiple($sids) {
     }
 
     // Clear the skinr_skin_load_multiple cache.
-    entity_get_controller('skinr_skin')->resetCache();
+    drupal_static_reset('skinr_skin_load_multiple');
   }
 }
 
 /**
- * Load a skin confiduration object from the database.
+ * Load a skin configuration object from the database.
  *
  * @param $sid
  *   The skin configuration ID.
- * @param $reset
- *   Whether to reset the skinr_skin_load_multiple cache.
  *
  * @return
  *   A fully-populated skin configuration object.
  */
-function skinr_skin_load($sid = NULL, $reset = FALSE) {
+function skinr_skin_load($sid = NULL) {
   $sids = (isset($sid) ? array($sid) : array());
-  $skin = skinr_skin_load_multiple($sids, $reset);
+  $skin = skinr_skin_load_multiple($sids);
   return $skin ? reset($skin) : FALSE;
 }
 
 /**
- * Load skin configuration entities from the database.
+ * Load skin configuration objects from the database.
  *
  * This function should be used whenever you need to load more than one skin
  * configuration from the database. Skin configurations are loaded into memory
  * and will not require database access if loaded again during the same page
  * request.
  *
- * @see entity_load()
- * @see EntityFieldQuery
+ * @see skinr_skin_get_sids()
  *
  * @param $sids
  *   An array of skin configuration IDs.
- * @param $reset
- *   Whether to reset the internal skinr_skin_load cache.
  *
  * @return
  *   An array of skin configuration objects indexed by sid.
  */
-function skinr_skin_load_multiple($sids = array(), $reset = FALSE) {
-  return entity_load('skinr_skin', $sids, array(), $reset);
+function skinr_skin_load_multiple($sids = array()) {
+  // @todo Do we want to write a more granular cache reset?
+  $skins = &drupal_static(__FUNCTION__, array());
+
+  // Create a new variable which is either a prepared version of the $sids
+  // array for later comparison with cached skin configuration objects, or FALSE
+  // if no $sids were passed. The $sids array is reduced as items are loaded
+  // from cache, and we need to know if it's empty for this reason to avoid
+  // querying the database when all requested skin configuration objects are
+  // loaded from cache.
+  $passed_sids = !empty($sids) ? array_flip($sids) : FALSE;
+  if ($passed_sids) {
+    $sids = array_keys(array_diff_key($passed_sids, $skins));
+  }
+
+  // Load any remaining skin configurations from the database. This is the
+  // case if $sids is set to FALSE (so we load all skins), or if there are any
+  // sids left to load.
+  if ($sids === FALSE || $sids) {
+    // Build the query.
+    $queried_skins = db_select('skinr_skins', 's')
+      ->fields('s')
+      ->condition('sid', $sids)
+      ->execute()
+      ->fetchAllAssoc('sid');
+
+    foreach ($queried_skins as $sid => $skin) {
+      // Unserialize options array.
+      $queried_skins[$sid]->options = unserialize($skin->options);
+
+      // Let modules modify the skin configurations.
+      module_invoke_all('skinr_skin_load', $queried_skins[$sid]);
+    }
+    $skins += $queried_skins;
+  }
+
+  // Ensure that the returned array is ordered the same as the original
+  // $sids array if this was passed in and remove any invalid sids.
+  if ($passed_sids) {
+    // Remove any invalid sids from the array.
+    $passed_sids = array_intersect_key($passed_sids, $skins);
+    $return = array();
+    foreach ($passed_sids as $sid => $ignore) {
+      $return[$sid] = $skins[$sid];
+    }
+  }
+  else {
+    $return = $skins;
+  }
+
+  return $return;
+}
+
+/**
+ * Load an uncached version of a skin configuration object.
+ *
+ * @param $sid
+ *   The skin configuration ID.
+ *
+ * @return
+ *   A fully-populated skin configuration object.
+ */
+function skinr_skin_load_unchanged($sid) {
+  // Load an uncached version of the skin configuration object.
+  $skin = db_select('skinr_skins', 's')
+    ->fields('s')
+    ->condition('sid', $sid)
+    ->execute()
+    ->fetchObject();
+
+  // Unserialize options array.
+  $skin->options = unserialize($skin->options);
+
+  // Let modules modify the skin configuration.
+  module_invoke_all('skinr_skin_load', $skin);
+
+  return $skin;
 }
 
 /**
@@ -704,32 +737,25 @@ function skinr_skin_load_multiple($sids = array(), $reset = FALSE) {
  *   An array of skin configuration IDs.
  */
 function skinr_skin_get_sids($filter_by = array()) {
-  $sids = array();
-
-  $query = new EntityFieldQuery;
-  $query->entityCondition('entity_type', 'skinr_skin');
+  $query = db_select('skinr_skins', 's')
+      ->fields('s', array('sid'));
   if (isset($filter_by['theme'])) {
-    $query->propertyCondition('theme', $filter_by['theme']);
+    $query->condition('theme', $filter_by['theme']);
   }
   if (isset($filter_by['module'])) {
-    $query->propertyCondition('module', $filter_by['module']);
+    $query->condition('module', $filter_by['module']);
   }
   if (isset($filter_by['element'])) {
-    $query->propertyCondition('element', $filter_by['element']);
+    $query->condition('element', $filter_by['element']);
   }
   if (isset($filter_by['skin'])) {
-    $query->propertyCondition('skin', $filter_by['skin']);
+    $query->condition('skin', $filter_by['skin']);
   }
   if (isset($filter_by['status'])) {
-    $query->propertyCondition('status', $filter_by['status']);
+    $query->condition('status', $filter_by['status']);
   }
-  $result = $query->execute();
-
-  if (!empty($result['skinr_skin'])) {
-    $sids = array_keys($result['skinr_skin']);
-  }
-
-  return $sids;
+  return $query->execute()
+    ->fetchCol();
 }
 
 /**
@@ -1201,4 +1227,3 @@ function skinr_themes_enabled() {
 function skinr_themes_disabled() {
   skinr_cache_reset();
 }
-

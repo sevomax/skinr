@@ -195,7 +195,7 @@ class SkinrUIAdminTestCase extends SkinrUITestCase {
    */
   function testSkinListing() {
     $skin = (object) array(
-      'theme' => 'skinr_test_basetheme',
+      'theme' => 'skinr_test_subtheme',
       'module' => 'block',
       'element' => 'system-user-menu',
       'skin' => 'skinr_test_subtheme',

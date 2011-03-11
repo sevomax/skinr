@@ -322,37 +322,36 @@ class SkinrApiTestCase extends DrupalWebTestCase {
     $_SESSION['skinr_test'] = array();
     skinr_skin_save($skin);
 
-    $this->assertHookMessage('skinr_test_entity_presave called for type skinr_skin');
     $this->assertHookMessage('skinr_test_skinr_skin_presave called');
-    $this->assertHookMessage('skinr_test_entity_insert called for type skinr_skin');
     $this->assertHookMessage('skinr_test_skinr_skin_insert called');
 
     $_SESSION['skinr_test'] = array();
     $skin = skinr_skin_load($skin->sid);
 
-    $this->assertHookMessage('skinr_test_entity_load called for type skinr_skin');
+    $this->assertHookMessage('skinr_test_skinr_skin_load called');
+
+    $_SESSION['skinr_test'] = array();
+    $skin = skinr_skin_load_unchanged($skin->sid);
+
     $this->assertHookMessage('skinr_test_skinr_skin_load called');
 
     $_SESSION['skinr_test'] = array();
     $skin->options = array('option3');
     skinr_skin_save($skin);
 
-    $this->assertHookMessage('skinr_test_entity_presave called for type skinr_skin');
     $this->assertHookMessage('skinr_test_skinr_skin_presave called');
-    $this->assertHookMessage('skinr_test_entity_update called for type skinr_skin');
     $this->assertHookMessage('skinr_test_skinr_skin_update called');
 
     $_SESSION['skinr_test'] = array();
     skinr_skin_delete($skin->sid);
 
-    $this->assertHookMessage('skinr_test_entity_delete called for type skinr_skin');
     $this->assertHookMessage('skinr_test_skinr_skin_delete called');
   }
 
   /**
    * Test skinr_skin_save() against invalid entries.
    */
-  public function testSkinrSkinSave() {
+  public function testSkinrSkinLoadSave() {
     // Only save valid skins.
     $skin = (object) array(
       'theme' => '',
@@ -385,5 +384,34 @@ class SkinrApiTestCase extends DrupalWebTestCase {
 
     $skin->options = array('option1' => 0, 'option2' => 0);
     $this->assertFalse(skinr_skin_save($skin), 'Skin configuration object was not saved when $skin->options was a complex empty array.');
+
+    $skin->options = array('option1', 'option2');
+    $this->assertTrue(skinr_skin_save($skin), 'Skin configuration object was saved.');
+    $this->assertTrue(isset($skin->sid), 'The sid was added to the skin configuration object.');
+
+    // Test loading a skin configuration.
+    $loaded_skin = skinr_skin_load($skin->sid);
+    $this->assertTrue(is_array($skin->options), 'Options for the skin configuration object were unserialized.');
+
+    $this->assertTrue($loaded_skin->theme == $skin->theme && $loaded_skin->module == $skin->module && $loaded_skin->element == $skin->element && $loaded_skin->status == $skin->status && $loaded_skin->options[0] == $skin->options[0] && $loaded_skin->options[1] == $skin->options[1], 'Skin configuration object was loaded properly.');
+
+    // Save a second skin.
+    $second_skin = (object) array(
+      'theme' => 'skinr_test_subtheme',
+      'module' => 'block',
+      'element' => 'system-main',
+      'skin' => 'skinr_test_subtheme',
+      'options' => array('option3'),
+      'status' => 1,
+    );
+    skinr_skin_save($second_skin);
+
+    // Test loading multiple skin configurations.
+    $skins = skinr_skin_load_multiple(array($skin->sid, $second_skin->sid));
+    $this->assertTrue(count($skins) == 2 && isset($skins[$skin->sid]->sid) && isset($skins[$second_skin->sid]->sid), 'Successfully loaded multiple skins.');
+
+    // Test loading all skin configurations.
+    $skins = skinr_skin_load_multiple();
+    $this->assertTrue(count($skins) == 2 && isset($skins[$skin->sid]->sid) && isset($skins[$second_skin->sid]->sid), 'Successfully loaded all skins.');
   }
 }

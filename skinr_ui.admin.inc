@@ -224,7 +224,8 @@ function skinr_ui_mass_update($skins, $updates) {
  * Helper function for skin configuration mass updates.
  */
 function _skinr_ui_mass_update_helper($sid, $updates) {
-  $skin = skinr_skin_load($sid, TRUE);
+  drupal_static_reset('skinr_skin_load_multiple');
+  $skin = skinr_skin_load($sid);
   // For efficiency manually store the original skin configuration before
   // applying any changes.
   $skin->original = clone $skin;

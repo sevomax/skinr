@@ -243,7 +243,7 @@ function skinr_ui_help($path, $arg) {
     case 'admin/appearance/skinr/rule/add':
       return  '<p>' . t('Choose the type of rule you wish to create. Page rules apply classes to the &lt;body&gt; tag. Region rules apply to the region wrapper &lt;div&gt; tag.') . '</p>';
     case 'admin/appearance/skinr/import':
-      return  '<p>' . t('To import skin configurations, ensure the correct theme is selected, paste exported code and click the "Import" button.') . '</p>';
+      return  '<p>' . t('To import skin configurations, paste exported code and click the "Import" button.') . '</p>';
     case 'admin/appearance/skinr/export':
       return  '<p>' . t('To export skin configurations, ensure the correct theme is selected and click the "Export" button.') . '</p>';
       break;
