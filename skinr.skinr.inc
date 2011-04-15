@@ -147,7 +147,7 @@ function rules_skinr_preprocess_index_handler(&$variables) {
   // Find any page level skinr options and return an array of them.
   $indices = array();
   foreach ($rules as $rule) {
-    if (skinr_rule_visible($rule->rid)) {
+    if (skinr_rule_is_visible($rule->rid)) {
       $indices[] = $rule->rid;
     }
   }
@@ -185,7 +185,7 @@ function rules_skinr_contextual_links(&$variables) {
   $counter = 1;
 
   foreach ($rules as $rule) {
-    if (skinr_rule_visible($rule->rid)) {
+    if (skinr_rule_is_visible($rule->rid)) {
       $links['skinr-rule-' . $counter++] = array(
         'admin/config/skinr/edit/nojs', array('page', $rule->rid),
       );
