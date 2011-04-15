@@ -706,11 +706,10 @@ function skinr_skin_load_multiple($sids = array()) {
  */
 function skinr_skin_load_unchanged($sid) {
   // Load an uncached version of the skin configuration object.
-  $skin = db_select('skinr_skins', 's')
-    ->fields('s')
-    ->condition('sid', $sid)
-    ->execute()
-    ->fetchObject();
+  $skin = db_query("SELECT * FROM {skinr_skins} WHERE sid = :sid", array(
+    ':sid' => $sid,
+  ))
+  ->fetchObject();
 
   // Unserialize options array.
   $skin->options = unserialize($skin->options);
