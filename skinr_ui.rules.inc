@@ -104,8 +104,9 @@ function skinr_rule_add($form, &$form_state) {
 function skinr_rule_add_submit($form, &$form_state) {
   $rule = new stdClass();
   $rule->rid = NULL;
-  $rule->rule_type = $form_state['values']['rule']['rule_type'];
   $rule->title = $form_state['values']['rule']['title'];
+  $rule->rule_type = $form_state['values']['rule']['rule_type'];
+  $rule->node_types = array();
   $rule->roles = array();
   $rule->visibility = 0;
   $rule->pages = '';
@@ -301,7 +302,7 @@ function skinr_rule_edit_submit($form, &$form_state) {
   $rule->rid = !empty($form_state['values']['rid']) ? $form_state['values']['rid'] : NULL;
   $rule->rule_type = $form_state['values']['rule_type'];
   $rule->title = $form_state['values']['title'];
-  $rule->node_types = $form_state['values']['types'];
+  $rule->node_types = array_filter($form_state['values']['types']);
   $rule->roles = $form_state['values']['roles'];
   $rule->visibility = (int) $form_state['values']['visibility'];
   $rule->pages = trim($form_state['values']['pages']);
@@ -319,7 +320,7 @@ function skinr_rule_edit_submit($form, &$form_state) {
  * @ingroup forms
  */
 function skinr_rule_delete_submit($form, &$form_state) {
-  $destination = '';
+  $destination = array();
   if (isset($_REQUEST['destination'])) {
     $destination = drupal_get_destination();
     unset($_REQUEST['destination']);

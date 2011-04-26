@@ -190,3 +190,54 @@ class SkinrUIAdminTestCase extends SkinrUITestCase {
     $this->assertText(t('Typography'));
   }
 }
+
+/**
+ * Tests rules administrative pages functionality.
+ */
+class SkinrUIRulesTestCase extends SkinrUITestCase {
+  public static function getInfo() {
+    return array(
+      'name' => 'Rules UI',
+      'description' => 'Tests rules functionality for Skinr UI.',
+      'group' => 'Skinr',
+    );
+  }
+
+  /**
+   * Tests administrative interface for rules.
+   */
+  function testRules() {
+    // Test that there is a rules page.
+    $this->drupalGet('admin/appearance/skinr');
+    $this->assertLinkByHref('admin/appearance/skinr/rules');
+
+    // Test that there is a way to add rules.
+    $this->drupalGet('admin/appearance/skinr/rules');
+    $this->clickLink(t('Create a new rule'), 0);
+
+    // Verify that we end up on the expected URL.
+    $this->assertUrl('admin/appearance/skinr/rules/add');
+
+    // Verify that we can create the rule.
+    $edit = array(
+      'rule[title]' => 'Rule 1',
+      'rule[rule_type]' => 'page',
+    );
+    $this->drupalPost(NULL, $edit, t('Add'));
+
+    // After posting, we expect to be redirected to the rule edit page.
+    $this->assertUrl('admin/appearance/skinr/rules/edit/1');
+
+    // Save rule.
+    // @todo Add a skin and test whether it applies properly or not.
+    $edit = array(
+    );
+    $this->drupalPost(NULL, $edit, t('Save rule'));
+
+    // We should be returned back to the rules page.
+    $this->assertUrl('admin/appearance/skinr/rules');
+
+    // Make sure the new rule appears listed on this page.
+    $this->assertLinkByHref('admin/appearance/skinr/rules/edit/1');
+  }
+}

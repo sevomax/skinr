@@ -195,6 +195,44 @@ function skinr_flatten_skins_array($skin_options) {
 // Rule functions.
 
 /**
+ * Validate a rule object.
+ *
+ * @param $rule
+ *   A rule object.
+ *
+ * @return
+ *   TRUE on success, FALSE on failure.
+ */
+
+function skinr_rule_validate(&$rule) {
+  if (empty($rule->title) || empty($rule->rule_type)) {
+    return FALSE;
+  }
+
+  if (!isset($rule->node_types)) {
+    $rule->node_types = array();
+  }
+  if (!isset($rule->roles)) {
+    $rule->roles = array();
+  }
+  if (!isset($rule->visibility)) {
+    $rule->visibility = 0;
+  }
+  if (!isset($rule->pages)) {
+    $rule->pages = '';
+  }
+
+  if (!is_array($rule->node_types) || !is_array($rule->roles)) {
+    return FALSE;
+  }
+  if ($rule->visibility !== 0 && $rule->visibility !== 1 && $rule->visibility !== 2) {
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+/**
  * Save a skinr rule object.
  *
  * @param $rule
@@ -204,8 +242,13 @@ function skinr_flatten_skins_array($skin_options) {
  *   The rule ID.
  */
 function skinr_rule_save($rule) {
-  drupal_write_record('skinr_rules', $rule, !empty($rule->rid) ? array('rid') : array());
-  return $rule->rid;
+  // Make sure we're getting valid data.
+  if (!skinr_rule_validate($rule)) {
+    return FALSE;
+  }
+
+  $status = drupal_write_record('skinr_rules', $rule, !empty($rule->rid) ? array('rid') : array());
+  return $status;
 }
 
 /**
@@ -273,34 +316,49 @@ function skinr_rule_delete($rid) {
 }
 
 /**
- * Determine whether a rule is applies to the current page or not.
+ * Determines if the rule should be visible for a given path.
  *
  * @param $rid
  *   The rule ID.
+ * @param $path
+ *   (optional) The path to check. Defaults to the path of the current page.
+ * @param $account
+ *   (optional) The account to check. Defaults to currently logged in user.
+ *
+ * @return
+ *   TRUE if the rule should be visible, FALSE otherwise.
  */
-function skinr_rule_is_visible($rid) {
+function skinr_rule_is_visible($rid, $path = NULL, $account = NULL) {
   global $user;
 
+  if (!isset($account)) {
+    $account = $user;
+  }
+
   if ($rule = skinr_rule_load($rid)) {
+    if (!isset($path)) {
+      $path = $_GET['q'];
+    }
+
     // Check role visibility.
-    if (!empty($rule->roles) && ($user->uid != 1) && !count(array_intersect(array_keys($user->roles), $node_types))) {
+    if (!empty($rule->roles) && ($account->uid != 1) && !count(array_intersect(array_keys($account->roles), $rule->roles))) {
       return FALSE;
     }
- 
+
     // Check content type visibility.
     // If a rule has no node types associated, it is displayed for every type.
     // For rules with node types associated, if the node type does not match
     // the settings from this rule, return FALSE.
     if (!empty($rule->node_types)) {
-      $node = menu_get_object();
+      $node = menu_get_object('node', 1, $path);
       $node_types = node_type_get_types();
-      if (arg(0) == 'node' && arg(1) == 'add' && arg(2)) {
+      if (arg(0, $path) == 'node' && arg(1, $path) == 'add' && arg(2, $path)) {
         $node_add_arg = strtr(arg(2), '-', '_');
       }
 
       if (!empty($node)) {
         // This is a node or node edit page.
-        if (!isset($rule->node_types[$node->type]) || !$rule->node_types[$node->type]) {
+        if (empty($rule->node_types[$node->type])) {
           // This rule should not be displayed for this node type.
           return FALSE;
         }
@@ -325,11 +383,11 @@ function skinr_rule_is_visible($rid) {
       $pages = drupal_strtolower($rule->pages);
       if ($rule->visibility < SKINR_RULE_VISIBILITY_PHP) {
         // Convert the Drupal path to lowercase
-        $path = drupal_strtolower(drupal_get_path_alias($_GET['q']));
+        $path = drupal_strtolower(drupal_get_path_alias($path));
         // Compare the lowercase internal and lowercase path alias (if any).
         $page_match = drupal_match_path($path, $pages);
         if ($path != $_GET['q']) {
-          $page_match = $page_match || drupal_match_path($_GET['q'], $pages);
+          $page_match = $page_match || drupal_match_path($path, $pages);
         }
         // When $rule->visibility has a value of 0 (SKINR_RULE_VISIBILITY_NOTLISTED),
         // the rule is displayed on all pages except those listed in $rule->pages.
