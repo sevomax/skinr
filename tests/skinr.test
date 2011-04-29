@@ -415,3 +415,124 @@ class SkinrApiTestCase extends DrupalWebTestCase {
     $this->assertTrue(count($skins) == 2 && isset($skins[$skin->sid]->sid) && isset($skins[$second_skin->sid]->sid), 'Successfully loaded all skins.');
   }
 }
+
+
+/**
+ * Tests API functionality.
+ *
+ * @link http://drupal.org/node/953336#comment-3738456 Make sure this patch is applied to drupal core @endlink
+ */
+class SkinrDisplayTestCase extends DrupalWebTestCase {
+  protected $profile = 'testing';
+
+  public static function getInfo() {
+    return array(
+      'name' => 'Display',
+      'description' => 'Tests if applied skins appear on the front-end.',
+      'group' => 'Skinr',
+    );
+  }
+
+  public function setUp() {
+    parent::setUp(array('block', 'skinr', 'skinr_test', 'devel'));
+
+    $this->admin_user = $this->drupalCreateUser(array(
+      'administer blocks',
+    ));
+    $this->drupalLogin($this->admin_user);
+
+    // Enable main system block for content region and the user menu block for
+    // the first sidebar.
+    // @see http://drupal.org/node/913086
+    $default_theme = variable_get('theme_default', 'bartik');
+    db_merge('block')
+      ->key(array(
+        'theme' => $default_theme,
+        'module' => 'system',
+        'delta' => 'main',
+      ))
+      ->fields(array(
+        'status' => 1,
+        'region' => 'content',
+        'pages' => '',
+      ))
+      ->execute();
+    db_merge('block')
+      ->key(array(
+        'theme' => $default_theme,
+        'module' => 'system',
+        'delta' => 'user-menu',
+      ))
+      ->fields(array(
+        'status' => 1,
+        'region' => 'sidebar_first',
+        'pages' => '',
+      ))
+      ->execute();
+
+    // Enable Garland.
+    theme_enable(array('garland'));
+  }
+
+  /**
+   * Asserts that a class is set for the given element id.
+   *
+   * @param $id
+   *   Id of the HTML element to check.
+   * @param $class
+   *   The class name to check for.
+   * @param $message
+   *   Message to display.
+   * @return
+   *   TRUE on pass, FALSE on fail.
+   */
+  function assertSkinrClass($id, $class, $message = '') {
+    $elements = $this->xpath('//div[@id=:id]', array(':id' => $id));
+    $class_attr = (string) $elements[0]['class'];
+    $this->assertTrue(strpos($class_attr, ' ' . $class . ' '), $message);
+  }
+
+  /**
+   * Asserts that a class is not set for the given element id.
+   *
+   * @param $id
+   *   Id of the HTML element to check.
+   * @param $class
+   *   The class name to check for.
+   * @param $message
+   *   Message to display.
+   * @return
+   *   TRUE on pass, FALSE on fail.
+   */
+  function assertNoSkinrClass($id, $class, $message = '') {
+    $elements = $this->xpath('//div[@id=:id]', array(':id' => $id));
+    $class_attr = (string) $elements[0]['class'];
+    $this->assertFalse(strpos($class_attr, ' ' . $class . ' '), $message);
+  }
+
+  public function testSkinrDisplayed() {
+    // Save a skin configuration object.
+    $skin = (object) array(
+      'theme' => 'bartik',
+      'module' => 'block',
+      'element' => 'system-user-menu',
+      'skin' => 'skinr_test_font',
+      'options' => array('font_1'),
+      'status' => 1,
+    );
+    $this->assertTrue(skinr_skin_save($skin), 'Skin configuration object was saved.');
+    $this->verbose(print_r($skin, TRUE));
+
+    // Go to the front page.
+    $this->drupalGet('');
+    $this->assertSkinrClass('block-system-user-menu', 'font-1', 'CSS class of configured skin option found.');
+
+    $content = $this->drupalGetContent();
+
+    $css = drupal_get_path('module', 'skinr_test') . '/skinr_test.css';
+    $this->assertRaw($css, t('Stylesheet was included on page.'));
+
+    $js = drupal_get_path('module', 'skinr_test') . '/skinr_test.js';
+    $this->assertRaw($js, t('Javascript was included on page.'));
+  }
+}

@@ -334,10 +334,10 @@ function _views_skinr_element_info($element) {
 function views_skinr_preprocess_index_handler(&$variables) {
   $default = $variables['view']->display_handler->is_defaulted('style_options');
   if ($default) {
-    return 'view-'. $variables['view']->name .'-display-default';
+    return array('view-'. $variables['view']->name .'-display-default');
   }
   else {
-    return 'view-'. $variables['view']->name .'-display-'. $variables['view']->current_display;
+    return array('view-'. $variables['view']->name .'-display-'. $variables['view']->current_display);
   }
 }
 

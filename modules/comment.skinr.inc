@@ -112,7 +112,7 @@ function comment_skinr_preprocess_hook_callback(&$form, $form_state) {
  *   structure and merge the returned classes.
  */
 function comment_skinr_preprocess_index_handler(&$variables) {
-  return $variables['node']->type;
+  return array($variables['node']->type);
 }
 
 /**

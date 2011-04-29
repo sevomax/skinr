@@ -115,7 +115,7 @@ function block_skinr_preprocess_hook_callback(&$form, $form_state) {
  *   structure and merge the returned classes.
  */
 function block_skinr_preprocess_index_handler(&$variables) {
-  return $variables['block']->module . '-' . $variables['block']->delta;
+  return array($variables['block']->module . '-' . $variables['block']->delta);
 }
 
 /**

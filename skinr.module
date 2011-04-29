@@ -71,6 +71,8 @@ function skinr_init() {
 /**
  * Implements hook_preprocess().
  *
+ * @todo Optimize this function by removing dependencies on
+ *   skinr_get_skin_info() and similar resource heavy functions.
  * @todo Account for Drupal's caching being enabled and make it work.
  */
 function skinr_preprocess(&$variables, $hook) {
@@ -93,9 +95,6 @@ function skinr_preprocess(&$variables, $hook) {
       if (empty($elements)) {
         // We can receive empty arrays; if that happens, there's no point in continuing.
         continue;
-      }
-      if (!is_array($elements)) {
-        $elements = array($elements);
       }
 
       // Get a list of skin configuration IDs to pass to
@@ -132,24 +131,28 @@ function skinr_preprocess(&$variables, $hook) {
 
       // Use drupal_process_attached() to add attachements such as JS and CSS.
       if (!empty($applied_skins)) {
-        if (!empty($applied_skins['_options'])) {
-          foreach ($applied_skins['_options'] as $skin_name => $skin_options) {
-            // Make sure this skin is enabled for the current theme.
-            // @todo Checking for status should probably happen somewhere upstream.
-            if (!empty($skin_info[$skin_name]['status'][$current_theme])) {
-              if (isset($skin_info[$skin_name]['attached'])) {
-                $elements['#attached'] = $skin_info[$skin_name]['attached'];
-                drupal_process_attached($elements);
-              }
+        foreach ($applied_skins as $skin_name => $skin_options) {
 
-              if (!is_array($skin_options)) {
-                $skin_options = array($skin_options);
-              }
-              foreach ($skin_options as $skin_option) {
-                if (isset($skin_info[$skin_name]['options'][$skin_option]['attached'])) {
-                  $elements['#attached'] = $skin_info[$skin_name]['options'][$skin_option]['attached'];
-                  drupal_process_attached($elements);
-                }
+          // Special case for _additional.
+          if ($skin_name == '_additional') {
+            continue;
+          }
+
+          // Make sure this skin is enabled for the current theme.
+          // @todo Checking for status should probably happen somewhere upstream.
+          if (!empty($skin_info[$skin_name]['status'][$current_theme])) {
+            if (isset($skin_info[$skin_name]['attached'])) {
+              $elements['#attached'] = $skin_info[$skin_name]['attached'];
+              drupal_process_attached($elements);
+            }
+
+            if (!is_array($skin_options)) {
+              $skin_options = array($skin_options);
+            }
+            foreach ($skin_options as $skin_option) {
+              if (isset($skin_info[$skin_name]['options'][$skin_option]['attached'])) {
+                $elements['#attached'] = $skin_info[$skin_name]['options'][$skin_option]['attached'];
+                drupal_process_attached($elements);
               }
             }
           }
@@ -165,27 +168,25 @@ function skinr_preprocess(&$variables, $hook) {
  * Returns an array of classes.
  *
  * @param $skin_options
- *   An array containing the following keys:
- *   - _options: An array of skin options keyed by their skin name.
- *   - _additional: A string containing additional classes to apply.
+ *   An array of skin options keyed by their skin name. The key '_additional'
+ *   is reserved for additional classes entered by the user.
  *
+ * @todo Optimize this function by removing dependencies on the resource heavy
+ *   skinr_get_skin_info() function.
  * @todo Rename function to reflect new functionality.
  */
 function skinr_flatten_skins_array($skin_options) {
-  $skin_infos = skinr_get_skin_info();
+  $skin_info = skinr_get_skin_info();
 
   $classes = array();
   foreach ($skin_options as $skin_name => $options) {
-    if (!is_array($options)) {
-      $options = array($options);
-    }
     if ($skin_name == '_additional') {
       $classes = array_merge($classes, $options);
     }
     else {
       foreach ($options as $option) {
-        if (!empty($skin_infos[$skin_name]['options'][$option]['class'])) {
-          $classes = array_merge($classes, $skin_infos[$skin_name]['options'][$option]['class']);
+        if (!empty($skin_info[$skin_name]['options'][$option]['class'])) {
+          $classes = array_merge($classes, $skin_info[$skin_name]['options'][$option]['class']);
         }
       }
     }
