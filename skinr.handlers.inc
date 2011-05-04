@@ -49,18 +49,18 @@ function skinr_access_handler($op, &$form, $form_state) {
 function skinr_index_handler($op, &$form, $form_state) {
   switch ($op) {
     case 'form':
-      if (empty($form['skinr']['sid']['#value'])) {
+      if (empty($form['skinr']['element']['#value'])) {
         trigger_error(sprintf("The form with form_id '%' is not a valid skinr form.", $form['form_id']['#value']), E_USER_ERROR);
         return FALSE;
       }
-      return $form['skinr']['sid']['#value'];
+      return $form['skinr']['element']['#value'];
 
     case 'submit':
-      if (empty($form_state['values']['sid'])) {
+      if (empty($form_state['values']['element'])) {
         trigger_error(sprintf("The form with form_id '%' is not a valid skinr form.", $form['form_id']['#value']), E_USER_ERROR);
         return FALSE;
       }
-      return $form_state['values']['sid'];
+      return $form_state['values']['element'];
   }
 }
 
@@ -87,9 +87,14 @@ function skinr_data_handler(&$form, $form_state, $theme, $module, $form_settings
   if (empty($form_settings['index_handler'])) {
     trigger_error(sprintf("No index_handler was found for form_id '%s' in module '%s'.", $form_id, $module), E_USER_ERROR);
   }
-  $index = skinr_handler('form_index_handler', 'form', $form_settings['index_handler'], $form, $form_state);
+  $element = skinr_handler('form_index_handler', 'form', $form_settings['index_handler'], $form, $form_state);
 
-  return skinr_skin_load($theme, $module, $index);
+  $params = array(
+    'theme' => $theme,
+    'module' => $module,
+    'element' => $element,
+  );
+  return skinr_skin_load_multiple(skinr_skin_get_sids($params));
 }
 
 /**
@@ -106,34 +111,64 @@ function skinr_data_handler(&$form, $form_state, $theme, $module, $form_settings
  *   processed.
  */
 function skinr_submit_handler(&$form, $form_state, $module, $form_settings) {
+  if (!$element = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state)) {
+    // We require a valid element to continue.
+    // @todo This should really be in a validation handler.
+    drupal_set_message(t("Skinr settings weren't saved due to an error."), 'error');
+    return;
+  }
+
   if (isset($form_state['values']['skinr_settings'][$module . '_group'])) {
     foreach ($form_state['values']['skinr_settings'][$module . '_group'] as $theme_name => $theme) {
-      if ((!empty($theme['widgets']) && is_array($theme['widgets'])) || isset($theme['_additional'])) {
-        $skin = new stdClass();
-        $skin->theme = $theme_name;
-        $skin->module = $module;
-        $skin->sid = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state);
-        $skin->skins = array();
+      // Process widgets.
+      if (!empty($theme) && is_array($theme)) {
+        foreach ($theme as $skin_name => $options) {
+          // Ensure options is an array.
+          if (!is_array($options)) {
+            $options = $skin_name == '_additional' ? explode(' ', $options) : array($options);
+          }
+          // Sanitzie options.
+          $options = _skinr_array_strip_empty($options);
 
-        if (!empty($theme['widgets']) && is_array($theme['widgets'])) {
-          foreach ($theme['widgets'] as $skin_name => $skin_value) {
-            $skin->skins['_options'][$skin_name] = $skin_value;
+          // Find existing skin.
+          $params = array(
+            'theme' => $theme_name,
+            'module' => $module,
+            'element' => $element,
+            'skin' => $skin_name,
+          );
+          $sids = skinr_skin_get_sids($params);
+
+          unset($skin);
+          if (!empty($sids)) {
+            $sid = reset($sids);
+            $skin = skinr_skin_load($sid);
+          }
+
+          if (empty($options)) {
+            if (!empty($skin)) {
+              // Delete this skin configuration.
+              skinr_skin_delete($skin->sid);
+            }
+            continue;
+          }
+
+          if (empty($skin)) {
+            // It doesn't exist, so create a new skin.
+            $skin = new stdClass();
+            $skin->theme = $theme_name;
+            $skin->module = $module;
+            $skin->element = $element;
+            $skin->skin = $skin_name;
+          }
+          $skin->options = $options;
+          $skin->status = 1;
+
+          // Save skin.
+          if (!skinr_skin_save($skin)) {
+            drupal_set_message(t("Skinr settings for %skin weren't saved due to an error.", array('%skin' => $skin_name)), 'error');
           }
         }
-
-        if (isset($theme['_additional'])) {
-          $theme['_additional'] = trim($theme['_additional']);
-          if (!empty($theme['_additional'])) {
-            $skin->skins['_additional'] = $theme['_additional'];
-          }
-        }
-
-        if (empty($skin->sid)) {
-          // We didn't receive a valid sid, so raise an error
-          drupal_set_message(t("Skinr settings weren't saved due to an error."), 'error');
-        }
-
-        skinr_skin_save($skin);
       }
     }
   }

@@ -84,11 +84,11 @@ function block_skinr_form_index_handler($op, &$form, $form_state) {
 function block_skinr_preprocess_hook_callback(&$form, $form_state) {
   $preprocess_hooks = array();
 
-  if (empty($form['module']['#value']) && !empty($form['skinr']['sid']['#value'])) {
+  if (empty($form['module']['#value']) && !empty($form['skinr']['element']['#value'])) {
     $result = db_select('block', 'b')
       ->fields('b')
       ->distinct()
-      ->where('CONCAT(b.module, \'-\', b.delta) = :identifier', array(':identifier' => $form['skinr']['sid']['#value']))
+      ->where('CONCAT(b.module, \'-\', b.delta) = :identifier', array(':identifier' => $form['skinr']['element']['#value']))
       ->range(0, 1)
       ->execute();
     foreach ($result as $block) {
@@ -115,7 +115,7 @@ function block_skinr_preprocess_hook_callback(&$form, $form_state) {
  *   structure and merge the returned classes.
  */
 function block_skinr_preprocess_index_handler(&$variables) {
-  return $variables['block']->module . '-' . $variables['block']->delta;
+  return array($variables['block']->module . '-' . $variables['block']->delta);
 }
 
 /**

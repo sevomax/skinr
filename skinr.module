@@ -71,6 +71,8 @@ function skinr_init() {
 /**
  * Implements hook_preprocess().
  *
+ * @todo Optimize this function by removing dependencies on
+ *   skinr_get_skin_info() and similar resource heavy functions.
  * @todo Account for Drupal's caching being enabled and make it work.
  */
 function skinr_preprocess(&$variables, $hook) {
@@ -89,16 +91,29 @@ function skinr_preprocess(&$variables, $hook) {
   foreach ($config as $module => $module_settings) {
     if (!empty($module_settings['preprocess'][$original_hook])) {
       $preprocess_settings = $module_settings['preprocess'][$original_hook];
-      $sids = skinr_handler('preprocess_index_handler', 'preprocess', $preprocess_settings['index_handler'], $variables);
-      if (!is_array($sids)) {
-        $sids = array($sids);
+      $elements = skinr_handler('preprocess_index_handler', 'preprocess', $preprocess_settings['index_handler'], $variables);
+      if (empty($elements)) {
+        // We can receive empty arrays; if that happens, there's no point in continuing.
+        continue;
+      }
+
+      // Get a list of skin configuration IDs to pass to
+      // skinr_skin_load_multiple().
+      $params = array(
+        'theme' => $current_theme,
+        'module' => $module,
+        'element' => $elements,
+        'status' => 1,
+      );
+      $sids = skinr_skin_get_sids($params);
+      if (empty($sids)) {
+        // Noting to apply.
+        continue;
       }
 
       $applied_skins = array();
-      foreach ($sids as $sid) {
-        if ($skin = skinr_skin_load($current_theme, $module, $sid)) {
-          $applied_skins = $skin->skins + $applied_skins;
-        }
+      foreach (skinr_skin_load_multiple($sids) as $skin) {
+        $applied_skins = array($skin->skin => $skin->options) + $applied_skins;
       }
 
       // Invoke hook_skinr_preprocess_alter() in all modules.
@@ -109,30 +124,35 @@ function skinr_preprocess(&$variables, $hook) {
         'variables' => &$variables,
         'theme' => $current_theme,
         'module' => $module,
-        'sids' => $sids,
+        'elements' => $elements,
         'options' => $applied_skins,
       );
       drupal_alter('skinr_preprocess', $context);
 
       // Use drupal_process_attached() to add attachements such as JS and CSS.
       if (!empty($applied_skins)) {
-        if (!empty($applied_skins['_options'])) {
-          foreach ($applied_skins['_options'] as $skin_name => $skin_options) {
-            // Make sure this skin is enabled for the current theme.
-            if (!empty($skin_info[$skin_name]['status'][$current_theme])) {
-              if (isset($skin_info[$skin_name]['attached'])) {
-                $elements['#attached'] = $skin_info[$skin_name]['attached'];
-                drupal_process_attached($elements);
-              }
+        foreach ($applied_skins as $skin_name => $skin_options) {
 
-              if (!is_array($skin_options)) {
-                $skin_options = array($skin_options);
-              }
-              foreach ($skin_options as $skin_option) {
-                if (isset($skin_info[$skin_name]['options'][$skin_option]['attached'])) {
-                  $elements['#attached'] = $skin_info[$skin_name]['options'][$skin_option]['attached'];
-                  drupal_process_attached($elements);
-                }
+          // Special case for _additional.
+          if ($skin_name == '_additional') {
+            continue;
+          }
+
+          // Make sure this skin is enabled for the current theme.
+          // @todo Checking for status should probably happen somewhere upstream.
+          if (!empty($skin_info[$skin_name]['status'][$current_theme])) {
+            if (isset($skin_info[$skin_name]['attached'])) {
+              $elements['#attached'] = $skin_info[$skin_name]['attached'];
+              drupal_process_attached($elements);
+            }
+
+            if (!is_array($skin_options)) {
+              $skin_options = array($skin_options);
+            }
+            foreach ($skin_options as $skin_option) {
+              if (isset($skin_info[$skin_name]['options'][$skin_option]['attached'])) {
+                $elements['#attached'] = $skin_info[$skin_name]['options'][$skin_option]['attached'];
+                drupal_process_attached($elements);
               }
             }
           }
@@ -148,30 +168,28 @@ function skinr_preprocess(&$variables, $hook) {
  * Returns an array of classes.
  *
  * @param $skin_options
- *   An array containing the following keys:
- *   - _options: An array of skin options keyed by their skin name.
- *   - _additional: A string containing additional classes to apply.
+ *   An array of skin options keyed by their skin name. The key '_additional'
+ *   is reserved for additional classes entered by the user.
  *
+ * @todo Optimize this function by removing dependencies on the resource heavy
+ *   skinr_get_skin_info() function.
  * @todo Rename function to reflect new functionality.
  */
 function skinr_flatten_skins_array($skin_options) {
-  $skin_infos = skinr_get_skin_info();
+  $skin_info = skinr_get_skin_info();
 
   $classes = array();
-  if (!empty($skin_options['_options'])) {
-    foreach ($skin_options['_options'] as $skin_name => $options) {
-      if (!is_array($options)) {
-        $options = array($options);
-      }
+  foreach ($skin_options as $skin_name => $options) {
+    if ($skin_name == '_additional') {
+      $classes = array_merge($classes, $options);
+    }
+    else {
       foreach ($options as $option) {
-        if (!empty($skin_infos[$skin_name]['options'][$option]['class'])) {
-          $classes = array_merge($classes, $skin_infos[$skin_name]['options'][$option]['class']);
+        if (!empty($skin_info[$skin_name]['options'][$option]['class'])) {
+          $classes = array_merge($classes, $skin_info[$skin_name]['options'][$option]['class']);
         }
       }
     }
-  }
-  if (!empty($skin_options['_additional'])) {
-    $classes[] = $skin_options['_additional'];
   }
   return array_unique($classes);
 }
@@ -251,7 +269,7 @@ function skinr_rule_delete($rid) {
       ->execute();
     db_delete('skinr')
       ->condition('module', 'page')
-      ->condition('sid', $rule->rid)
+      ->condition('element', $rule->rid)
       ->execute();
   }
 }
@@ -489,18 +507,18 @@ function skinr_include_once($file) {
  *   TRUE on success, FALSE on failure.
  */
 function skinr_skin_validate(&$skin) {
-  if (!isset($skin->theme) || !isset($skin->module) || !isset($skin->sid) || !isset($skin->skins)) {
+  if (empty($skin->theme) || empty($skin->module) || empty($skin->element) || empty($skin->skin) || empty($skin->options)) {
     return FALSE;
   }
-  if (!isset($skin->settings)) {
-    $skin->settings = array();
-  }
-  if (!is_array($skin->skins) || !is_array($skin->settings)) {
+  if (!is_array($skin->options)) {
     return FALSE;
   }
 
   // Strip empty skins.
-  $skin->skins = _skinr_array_strip_empty($skin->skins);
+  $skin->options = _skinr_array_strip_empty($skin->options);
+  if (empty($skin->options)) {
+    return FALSE;
+  }
 
   return TRUE;
 }
@@ -514,149 +532,230 @@ function skinr_skin_validate(&$skin) {
  * @return
  *   TRUE on success, FALSE on failure.
  */
-function skinr_skin_save($skin) {
+function skinr_skin_save(&$skin) {
   // Make sure we're getting valid data.
   if (!skinr_skin_validate($skin)) {
     return FALSE;
   }
 
-  if (empty($skin->skins) && empty($skin->settings)) {
-    // Delete the db entry if it exists.
-    db_delete('skinr')
-      ->condition('theme', $skin->theme)
-      ->condition('module', $skin->module)
-      ->condition('sid', $skin->sid)
-      ->execute();
-  }
-  else {
-    // Let's save the data.
-    if (skinr_skin_load($skin->theme, $skin->module, $skin->sid) !== FALSE) {
-      // Record exists, so let's update.
-      drupal_write_record('skinr', $skin, array('theme', 'module', 'sid'));
-    }
-    else {
-      // Insert a new record.
-      drupal_write_record('skinr', $skin);
+  // Load the stored skin configuration object, if any.
+  if (!empty($skin->sid)) {
+    if (!isset($skin->original)) {
+      // Load an uncached version of the skin configuration object.
+      $skin->original = skinr_skin_load_unchanged($skin->sid);
     }
   }
 
-  return TRUE;
+  // Let modules modify the node before it is saved to the database.
+  module_invoke_all('skinr_skin_presave', $skin);
+
+  if (!empty($skin->sid)) {
+    // Record exists, so let's update.
+    $status = drupal_write_record('skinr_skins', $skin, 'sid');
+    module_invoke_all('skinr_skin_update', $skin);
+  }
+  else {
+    // Insert a new record.
+    $status = drupal_write_record('skinr_skins', $skin);
+    module_invoke_all('skinr_skin_insert', $skin);
+  }
+
+  // Clear internal properties.
+  unset($skin->original);
+  // Clear the static loading cache.
+  // @todo If we have a more granular reset for skinr_skin_load_multiple(), we
+  //   need to use it here.
+  drupal_static_reset('skinr_skin_load_multiple');
+
+  return $status;
 }
 
 /**
  * Delete a skin object.
  *
- * @param $theme
- *   The theme this skin applies to. If no theme name is provided, the
- *   current theme will be used.
- * @param $module
- *   The module.
  * @param $sid
- *   The element ID.
+ *   The skin configuration ID.
  */
-function skinr_skin_delete($theme = NULL, $module = NULL, $sid = NULL) {
-  node_delete_multiple(array(array($theme, $module, $sid)));
+function skinr_skin_delete($sid) {
+  skinr_skin_delete_multiple(array($sid));
 }
 
 /**
- * Delete multiple skin objects.
+ * Delete multiple skin configuration objects.
  *
- * @param $arguments
- *   An array of arrays containing the following arguments:
- *   - $theme
- *   - $module
- *   - $sid
- *
- * @see skinr_skin_delete().
- *
- * @todo Make this function functional.
+ * @param $sids
+ *   An array of skin configuration IDs.
  */
-function skinr_skin_delete_multiple($arguments) {
+function skinr_skin_delete_multiple($sids) {
+  $transaction = db_transaction();
+  if (!empty($sids)) {
+    $skins = skinr_skin_load_multiple($sids);
+
+    try {
+      foreach ($skins as $sid => $skin) {
+        module_invoke_all('skinr_skin_delete', $skin);
+      }
+
+      // Delete after calling hooks so that they can query node tables as needed.
+      db_delete('skinr_skins')
+        ->condition('sid', $sids, 'IN')
+        ->execute();
+    }
+    catch (Exception $e) {
+      $transaction->rollback();
+      watchdog_exception('skinr', $e);
+      throw $e;
+    }
+
+    // Clear the skinr_skin_load_multiple cache.
+    drupal_static_reset('skinr_skin_load_multiple');
+  }
 }
 
 /**
- * Retrieves a stored skin from the database.
+ * Load a skin configuration object from the database.
  *
- * @param $theme
- *   The theme of the skin. Defaults to the current theme.
- * @param $module
- *   The module of the skin.
  * @param $sid
- *   The element ID of the skin.
+ *   The skin configuration ID.
  *
  * @return
- *   A skin object if both $module and $sid are specified. An array of skins
- *   if only $module is specified. An array of all skins for a theme if neither
- *   $module nor $sid is specified. FALSE on failure.
- *
- * @todo Rename $skin->skins to $skin->options throughout the module.
+ *   A fully-populated skin configuration object.
  */
-function skinr_skin_load($theme = NULL, $module = NULL, $sid = NULL) {
-  $skins = &drupal_static(__FUNCTION__, array());
-
-  if (!isset($theme)) {
-    $theme = skinr_current_theme();
-  }
-
-  // @todo This condition is always FALSE when no $sid is passed.
-  if (!isset($skins[$theme][$module][$sid])) {
-    $skins += array($theme => array());
-    if (isset($module)) {
-      $skins[$theme] += array($module => array());
-    }
-
-    $query = db_select('skinr', 's')
-      ->fields('s', array('theme', 'module', 'sid', 'settings', 'skins'));
-    if (isset($theme)) {
-      $query->condition('theme', $theme);
-    }
-    if (isset($module)) {
-      $query->condition('module', $module);
-    }
-    if (isset($sid)) {
-      $query->condition('sid', $sid);
-    }
-    foreach ($query->execute() as $skin) {
-      $skin->settings = unserialize($skin->settings);
-      $skin->skins = unserialize($skin->skins);
-      $skins[$skin->theme][$skin->module][$skin->sid] = $skin;
-    }
-  }
-
-  // Return all skins for the passed theme.
-  if (!isset($module) && !isset($sid)) {
-    if (isset($skins[$theme])) {
-      return $skins[$theme];
-    }
-  }
-  // Return all skins for the passed module.
-  elseif (!isset($sid)) {
-    if (isset($skins[$theme][$module])) {
-      return $skins[$theme][$module];
-    }
-  }
-  // Return the requested skin.
-  elseif (isset($skins[$theme][$module][$sid])) {
-    return $skins[$theme][$module][$sid];
-  }
-  return FALSE;
+function skinr_skin_load($sid = NULL) {
+  $sids = (isset($sid) ? array($sid) : array());
+  $skin = skinr_skin_load_multiple($sids);
+  return $skin ? reset($skin) : FALSE;
 }
 
 /**
- * Load multiple skin objects.
+ * Load skin configuration objects from the database.
  *
- * @param $arguments
- *   An array of arrays containing the following arguments:
- *   - $theme
- *   - $module
- *   - $sid
+ * This function should be used whenever you need to load more than one skin
+ * configuration from the database. Skin configurations are loaded into memory
+ * and will not require database access if loaded again during the same page
+ * request.
  *
- * @see skinr_skin_load().
+ * @see skinr_skin_get_sids()
  *
- * @todo Make this function functional.
- * @todo Look at using hook_entity_info() and entity_load().
+ * @param $sids
+ *   An array of skin configuration IDs.
+ *
+ * @return
+ *   An array of skin configuration objects indexed by sid.
  */
-function skinr_skin_load_multiple($arguments) {
+function skinr_skin_load_multiple($sids = array()) {
+  // @todo Do we want to write a more granular cache reset?
+  $skins = &drupal_static(__FUNCTION__, array());
+
+  // Create a new variable which is either a prepared version of the $sids
+  // array for later comparison with cached skin configuration objects, or FALSE
+  // if no $sids were passed. The $sids array is reduced as items are loaded
+  // from cache, and we need to know if it's empty for this reason to avoid
+  // querying the database when all requested skin configuration objects are
+  // loaded from cache.
+  $passed_sids = !empty($sids) ? array_flip($sids) : FALSE;
+  if ($passed_sids) {
+    $sids = array_keys(array_diff_key($passed_sids, $skins));
+  }
+
+  // Load any remaining skin configurations from the database. This is the
+  // case if $sids is set to FALSE (so we load all skins), or if there are any
+  // sids left to load.
+  if ($sids === FALSE || $sids) {
+    // Build the query.
+    $queried_skins = db_select('skinr_skins', 's')
+      ->fields('s')
+      ->condition('sid', $sids)
+      ->execute()
+      ->fetchAllAssoc('sid');
+
+    foreach ($queried_skins as $sid => $skin) {
+      // Unserialize options array.
+      $queried_skins[$sid]->options = unserialize($skin->options);
+
+      // Let modules modify the skin configurations.
+      module_invoke_all('skinr_skin_load', $queried_skins[$sid]);
+    }
+    $skins += $queried_skins;
+  }
+
+  // Ensure that the returned array is ordered the same as the original
+  // $sids array if this was passed in and remove any invalid sids.
+  if ($passed_sids) {
+    // Remove any invalid sids from the array.
+    $passed_sids = array_intersect_key($passed_sids, $skins);
+    $return = array();
+    foreach ($passed_sids as $sid => $ignore) {
+      $return[$sid] = $skins[$sid];
+    }
+  }
+  else {
+    $return = $skins;
+  }
+
+  return $return;
+}
+
+/**
+ * Load an uncached version of a skin configuration object.
+ *
+ * @param $sid
+ *   The skin configuration ID.
+ *
+ * @return
+ *   A fully-populated skin configuration object.
+ */
+function skinr_skin_load_unchanged($sid) {
+  // Load an uncached version of the skin configuration object.
+  $skin = db_query("SELECT * FROM {skinr_skins} WHERE sid = :sid", array(
+    ':sid' => $sid,
+  ))
+  ->fetchObject();
+
+  // Unserialize options array.
+  $skin->options = unserialize($skin->options);
+
+  // Let modules modify the skin configuration.
+  module_invoke_all('skinr_skin_load', $skin);
+
+  return $skin;
+}
+
+/**
+ * Get skin configuration IDs.
+ *
+ * @param $filter_by
+ *   An associative array whose keys are:
+ *   - theme: (optional) The theme.
+ *   - module: (optional) The module.
+ *   - element: (optional) The element ID.
+ *   - skin: (optional) The skin name.
+ *   - status: (optional) Boolean indicating whether or not this skin
+ *     configuration is enabled.
+ *
+ * @return
+ *   An array of skin configuration IDs.
+ */
+function skinr_skin_get_sids($filter_by = array()) {
+  $query = db_select('skinr_skins', 's')
+      ->fields('s', array('sid'));
+  if (isset($filter_by['theme'])) {
+    $query->condition('theme', $filter_by['theme']);
+  }
+  if (isset($filter_by['module'])) {
+    $query->condition('module', $filter_by['module']);
+  }
+  if (isset($filter_by['element'])) {
+    $query->condition('element', $filter_by['element']);
+  }
+  if (isset($filter_by['skin'])) {
+    $query->condition('skin', $filter_by['skin']);
+  }
+  if (isset($filter_by['status'])) {
+    $query->condition('status', $filter_by['status']);
+  }
+  return $query->execute()
+    ->fetchCol();
 }
 
 /**
@@ -788,7 +887,7 @@ function _skinr_add_path_to_files(&$files, $path) {
  * script paths to be relative to Drupal's root.
  *
  * @param $skin_infos
- *   A skins array as returned from a skins plugin.
+ *   An array of skins as returned from skin plugins.
  * @param $source
  *   An associative array containing information about the source of the skin.
  *   See skinr_implements() for details.
@@ -1128,4 +1227,3 @@ function skinr_themes_enabled() {
 function skinr_themes_disabled() {
   skinr_cache_reset();
 }
-

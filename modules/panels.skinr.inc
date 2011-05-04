@@ -216,7 +216,7 @@ function panels_skinr_submit_handler_settings(&$form, $form_state, $module, $for
   foreach ($form_state['values']['skinr_settings'][$module . '_group'] as $theme_name => $theme) {
     if ((!empty($theme['widgets']) && is_array($theme['widgets'])) || isset($theme['_additional'])) {
       $hook  = $module;
-      $sid   = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state);
+      $element = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state);
 
       // Key doesn't exist properly for new displays. Perhaps we should inject a timestamp based key into the display object
       // and use that for reference on the final submit? If it works...
@@ -236,8 +236,8 @@ function panels_skinr_submit_handler_settings(&$form, $form_state, $module, $for
         }
       }
 
-      if (empty($sid)) {
-        // We didn't receive a valid sid, so raise an error.
+      if (empty($element)) {
+        // We didn't receive a valid element, so raise an error.
         drupal_set_message(t("Skinr settings weren't saved due to an error."), 'error');
       }
 
@@ -255,7 +255,7 @@ function panels_skinr_submit_handler_settings(&$form, $form_state, $module, $for
           }
         }
       }
-      $skinr_data[$theme_name][$sid] = $value;
+      $skinr_data[$theme_name][$element] = $value;
       ctools_object_cache_set('skinr', $form_state['display']->did, $skinr_data);
     }
   }
@@ -310,11 +310,11 @@ function panels_skinr_submit_handler_display(&$form, $form_state, $module, $form
 function _panels_skinr_save_and_clear_cache($did) {
   if ($skinr_data = ctools_object_cache_get('skinr', $did, TRUE)) {
     foreach ($skinr_data as $theme_name => $theme) {
-      foreach ($theme as $sid => $skins) {
+      foreach ($theme as $element => $skins) {
         $skinr = new stdClass();
         $skinr->theme = $theme_name;
         $skinr->module = 'panels';
-        $skinr->sid = $sid;
+        $skinr->element = $element;
         $skinr->skins = $skins;
 
         skinr_skin_save($skinr);
@@ -358,10 +358,10 @@ function panels_skinr_preprocess_hook_callback(&$form, $form_state) {
  *   An array of preprocess hooks we wish to use.
  */
 function panels_skinr_ajax_preprocess_hook_callback(&$form, $form_state) {
-  if (strpos($form['skinr']['sid']['#value'], '-region-') !== FALSE) {
+  if (strpos($form['skinr']['element']['#value'], '-region-') !== FALSE) {
     return 'panels_region';
   }
-  elseif (strpos($form['skinr']['sid']['#value'], '-pane-') !== FALSE) {
+  elseif (strpos($form['skinr']['element']['#value'], '-pane-') !== FALSE) {
     return 'panels_pane';
   }
   else {
@@ -381,9 +381,9 @@ function panels_skinr_ajax_preprocess_hook_callback(&$form, $form_state) {
  *   structure and merge the returned classes.
  */
 function panels_skinr_preprocess_index_handler(&$variables) {
-  $index = '';
+  $index = array();
   if (isset($variables['pane']->style['style']) && $variables['pane']->style['style'] == 'skinr') {
-    $index = 'display-' . $variables['pane']->did . '-pane-' . $variables['pane']->pid;
+    $index[] = 'display-' . $variables['pane']->did . '-pane-' . $variables['pane']->pid;
   }
   return $index;
 }

@@ -114,7 +114,7 @@ function rules_skinr_preprocess_hook_callback(&$form, $form_state) {
     $hooks = explode('__', $form['rule']['rule_type']['#value']);
   }
   else {
-    $rule = skinr_rule_load($form['skinr']['sid']['#value']);
+    $rule = skinr_rule_load($form['skinr']['element']['#value']);
     $hooks = explode('__', $rule->rule_type);
   }
   while (count($hooks)) {

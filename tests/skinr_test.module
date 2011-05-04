@@ -22,3 +22,58 @@ function skinr_test_system_theme_info() {
   }
   return $themes;
 }
+
+//
+// Presave hooks
+//
+
+/**
+ * Implements hook_skinr_skin_presave().
+ */
+function skinr_test_skinr_skin_presave() {
+  $_SESSION['skinr_test'][] = (__FUNCTION__ . ' called');
+}
+
+//
+// Insert hooks
+//
+
+/**
+ * Implements hook_skinr_skin_insert().
+ */
+function skinr_test_skinr_skin_insert() {
+  $_SESSION['skinr_test'][] = (__FUNCTION__ . ' called');
+}
+
+//
+// Load hooks
+//
+
+/**
+ * Implements hook_skinr_skin_load().
+ */
+function skinr_test_skinr_skin_load() {
+  $_SESSION['skinr_test'][] = (__FUNCTION__ . ' called');
+}
+
+//
+// Update hooks
+//
+
+/**
+ * Implements hook_skinr_skin_update().
+ */
+function skinr_test_skinr_skin_update() {
+  $_SESSION['skinr_test'][] = (__FUNCTION__ . ' called');
+}
+
+//
+// Delete hooks
+//
+
+/**
+ * Implements hook_skinr_skin_delete().
+ */
+function skinr_test_skinr_skin_delete() {
+  $_SESSION['skinr_test'][] = (__FUNCTION__ . ' called');
+}

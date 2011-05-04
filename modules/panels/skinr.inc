@@ -22,11 +22,11 @@ $plugin = array(
  */
 function theme_panels_skinr_style_render_region($variables) {
   $hook = 'panels';
-  $sid = 'display-' . $variables['display']->did . '-region-' . $variables['region_id'];
+  $element = 'display-' . $variables['display']->did . '-region-' . $variables['region_id'];
 
   // Add skinr styles.
   $style = array();
-  if ($skinr = skinr_skin_load(NULL, $hook, $sid)) {
+  if ($skinr = skinr_skin_load(NULL, $hook, $element)) {
     $style = implode(' ', skinr_flatten_skins_array($skinr->skins));
   }
 
@@ -39,7 +39,7 @@ function theme_panels_skinr_style_render_region($variables) {
   if (user_access('skinr access')) {
     $variables['content']->admin_links[] = array(
       'title' => t('Edit skin'),
-      'href' => 'admin/appearance/skinr/edit/nojs/panels/' . $sid,
+      'href' => 'admin/appearance/skinr/edit/nojs/panels/' . $element,
       'query' => drupal_get_destination(),
     );
   }
@@ -54,11 +54,11 @@ function theme_panels_skinr_style_render_region($variables) {
  */
 function theme_panels_skinr_style_render_pane($variables) {
   $hook = 'panels';
-  $sid = 'display-' . $variables['display']->did . '-pane-' . $variables['pane']->pid;
+  $element = 'display-' . $variables['display']->did . '-pane-' . $variables['pane']->pid;
 
   // Add skinr styles
   $style = array();
-  if ($skinr = skinr_skin_load(NULL, $hook, $sid)) {
+  if ($skinr = skinr_skin_load(NULL, $hook, $element)) {
     $style = skinr_flatten_skins_array($skinr->skins);
   }
 
@@ -75,7 +75,7 @@ function theme_panels_skinr_style_render_pane($variables) {
   if (user_access('skinr access')) {
     $variables['content']->admin_links[] = array(
       'title' => t('Edit skin'),
-      'href' => 'admin/appearance/skinr/edit/nojs/panels/' . $sid,
+      'href' => 'admin/appearance/skinr/edit/nojs/panels/' . $element,
       'query' => drupal_get_destination(),
     );
   }

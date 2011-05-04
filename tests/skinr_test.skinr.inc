@@ -21,6 +21,7 @@ function skinr_test_skinr_skin_info() {
     'default status' => 1,
     'attached' => array(
       'css' => array('skinr_test.css'),
+      'js' => array('skinr_test.js'),
     ),
     'options' => array(
       'font_1' => array(

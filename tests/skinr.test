@@ -83,6 +83,8 @@ class SkinrInstallationTestCase extends DrupalWebTestCase {
 
 /**
  * Tests API functionality.
+ *
+ * @link http://drupal.org/node/953336#comment-3738456 Make sure this patch is applied to drupal core @endlink
  */
 class SkinrApiTestCase extends DrupalWebTestCase {
   protected $profile = 'testing';
@@ -95,16 +97,37 @@ class SkinrApiTestCase extends DrupalWebTestCase {
     );
   }
 
-  function setUp() {
+  public function setUp() {
     parent::setUp(array('skinr', 'skinr_test', 'skinr_test_incompatible'));
     // Enable skinr_test_subtheme, but NOT the basetheme.
     theme_enable(array('skinr_test_subtheme'));
   }
 
   /**
+   * Pass if the message $text was set by one of the CRUD hooks in
+   * skinr_test.module, i.e., if the $text is an element of
+   * $_SESSION['skinr_test'].
+   *
+   * @param $text
+   *   Plain text to look for.
+   * @param $message
+   *   Message to display.
+   * @param $group
+   *   The group this message belongs to, defaults to 'Other'.
+   * @return
+   *   TRUE on pass, FALSE on fail.
+   */
+  protected function assertHookMessage($text, $message = NULL, $group = 'Other') {
+    if (!isset($message)) {
+      $message = $text;
+    }
+    return $this->assertTrue(array_search($text, $_SESSION['skinr_test']) !== FALSE, $message, $group);
+  }
+
+  /**
    * Tests skinr_implements().
    */
-  function testSkinrImplements() {
+  public function testSkinrImplements() {
     // Verify that skinr_implements() only returns extensions that are
     // compatible with this version of Skinr.
     $extensions = skinr_implements();
@@ -168,7 +191,7 @@ class SkinrApiTestCase extends DrupalWebTestCase {
   /**
    * Tests hook_skinr_skin_info().
    */
-  function testSkinrSkinInfo() {
+  public function testSkinrSkinInfo() {
     // Verify that skinr_get_skin_info() finds and returns all registered skins
     // in $module.skinr.inc files as well as Skinr plugin files, but does not
     // return skins that are incompatible with the current Skinr API version.
@@ -223,7 +246,7 @@ class SkinrApiTestCase extends DrupalWebTestCase {
   /**
    * Tests hook_skinr_group_info().
    */
-  function testSkinrGroupInfo() {
+  public function testSkinrGroupInfo() {
     $group_info = skinr_get_group_info();
 
     // Verify that default skin groups are found.
@@ -264,7 +287,7 @@ class SkinrApiTestCase extends DrupalWebTestCase {
   /**
    * Tests hook_skinr_config_info().
    */
-  function testSkinrConfigInfo() {
+  public function testSkinrConfigInfo() {
     // Verify that skinr_get_config_info() finds all existing and compatible
     // hook_skinr_config_info() implementations.
     $config = skinr_get_config_info();
@@ -282,5 +305,234 @@ class SkinrApiTestCase extends DrupalWebTestCase {
     $this->assertTrue(!isset($config['skinr_test_incompatible']), 'Incompatible hook_skinr_config_info() not found.');
     // After asserting all expected, the list of skins should be empty.
     $this->assertTrue(empty($config), 'No unexpected skins found.');
+  }
+
+  /**
+   * Test hook invocations for CRUD operations on skin configurations.
+   */
+  public function testSkinrSkinHooks() {
+    $skin = (object) array(
+      'theme' => 'skinr_test_subtheme',
+      'module' => 'block',
+      'element' => 'system-user-menu',
+      'skin' => 'skinr_test_subtheme',
+      'options' => array('option1', 'option2'),
+      'status' => 1,
+    );
+    $_SESSION['skinr_test'] = array();
+    skinr_skin_save($skin);
+
+    $this->assertHookMessage('skinr_test_skinr_skin_presave called');
+    $this->assertHookMessage('skinr_test_skinr_skin_insert called');
+
+    $_SESSION['skinr_test'] = array();
+    $skin = skinr_skin_load($skin->sid);
+
+    $this->assertHookMessage('skinr_test_skinr_skin_load called');
+
+    $_SESSION['skinr_test'] = array();
+    $skin = skinr_skin_load_unchanged($skin->sid);
+
+    $this->assertHookMessage('skinr_test_skinr_skin_load called');
+
+    $_SESSION['skinr_test'] = array();
+    $skin->options = array('option3');
+    skinr_skin_save($skin);
+
+    $this->assertHookMessage('skinr_test_skinr_skin_presave called');
+    $this->assertHookMessage('skinr_test_skinr_skin_update called');
+
+    $_SESSION['skinr_test'] = array();
+    skinr_skin_delete($skin->sid);
+
+    $this->assertHookMessage('skinr_test_skinr_skin_delete called');
+  }
+
+  /**
+   * Test skinr_skin_save() against invalid entries.
+   */
+  public function testSkinrSkinLoadSave() {
+    // Only save valid skins.
+    $skin = (object) array(
+      'theme' => '',
+      'module' => 'block',
+      'element' => 'system-user-menu',
+      'skin' => 'skinr_test_subtheme',
+      'options' => array('option1', 'option2'),
+      'status' => 1,
+    );
+    $this->assertFalse(skinr_skin_save($skin), 'Skin configuration object was not saved when $skin->theme was empty.');
+
+    $skin->theme = 'skinr_test_subtheme';
+    $skin->module = '';
+    $this->assertFalse(skinr_skin_save($skin), 'Skin configuration object was not saved when $skin->module was empty.');
+
+    $skin->module = 'block';
+    $skin->element = '';
+    $this->assertFalse(skinr_skin_save($skin), 'Skin configuration object was not saved when $skin->element was empty.');
+
+    $skin->element = 'system-user-menu';
+    $skin->skin = '';
+    $this->assertFalse(skinr_skin_save($skin), 'Skin configuration object was not saved when $skin->skin was empty.');
+
+    $skin->skin = 'skinr_test_subtheme';
+    $skin->options = '';
+    $this->assertFalse(skinr_skin_save($skin), 'Skin configuration object was not saved when $skin->options was not an array.');
+
+    $skin->options = array();
+    $this->assertFalse(skinr_skin_save($skin), 'Skin configuration object was not saved when $skin->options was an empty array.');
+
+    $skin->options = array('option1' => 0, 'option2' => 0);
+    $this->assertFalse(skinr_skin_save($skin), 'Skin configuration object was not saved when $skin->options was a complex empty array.');
+
+    $skin->options = array('option1', 'option2');
+    $this->assertTrue(skinr_skin_save($skin), 'Skin configuration object was saved.');
+    $this->assertTrue(isset($skin->sid), 'The sid was added to the skin configuration object.');
+
+    // Test loading a skin configuration.
+    $loaded_skin = skinr_skin_load($skin->sid);
+    $this->assertTrue(is_array($skin->options), 'Options for the skin configuration object were unserialized.');
+
+    $this->assertTrue($loaded_skin->theme == $skin->theme && $loaded_skin->module == $skin->module && $loaded_skin->element == $skin->element && $loaded_skin->status == $skin->status && $loaded_skin->options[0] == $skin->options[0] && $loaded_skin->options[1] == $skin->options[1], 'Skin configuration object was loaded properly.');
+
+    // Save a second skin.
+    $second_skin = (object) array(
+      'theme' => 'skinr_test_subtheme',
+      'module' => 'block',
+      'element' => 'system-main',
+      'skin' => 'skinr_test_subtheme',
+      'options' => array('option3'),
+      'status' => 1,
+    );
+    skinr_skin_save($second_skin);
+
+    // Test loading multiple skin configurations.
+    $skins = skinr_skin_load_multiple(array($skin->sid, $second_skin->sid));
+    $this->assertTrue(count($skins) == 2 && isset($skins[$skin->sid]->sid) && isset($skins[$second_skin->sid]->sid), 'Successfully loaded multiple skins.');
+
+    // Test loading all skin configurations.
+    $skins = skinr_skin_load_multiple();
+    $this->assertTrue(count($skins) == 2 && isset($skins[$skin->sid]->sid) && isset($skins[$second_skin->sid]->sid), 'Successfully loaded all skins.');
+  }
+}
+
+
+/**
+ * Tests API functionality.
+ *
+ * @link http://drupal.org/node/953336#comment-3738456 Make sure this patch is applied to drupal core @endlink
+ */
+class SkinrDisplayTestCase extends DrupalWebTestCase {
+  protected $profile = 'testing';
+
+  public static function getInfo() {
+    return array(
+      'name' => 'Display',
+      'description' => 'Tests if applied skins appear on the front-end.',
+      'group' => 'Skinr',
+    );
+  }
+
+  public function setUp() {
+    parent::setUp(array('block', 'skinr', 'skinr_test', 'devel'));
+
+    $this->admin_user = $this->drupalCreateUser(array(
+      'administer blocks',
+    ));
+    $this->drupalLogin($this->admin_user);
+
+    // Enable main system block for content region and the user menu block for
+    // the first sidebar.
+    // @see http://drupal.org/node/913086
+    $default_theme = variable_get('theme_default', 'bartik');
+    db_merge('block')
+      ->key(array(
+        'theme' => $default_theme,
+        'module' => 'system',
+        'delta' => 'main',
+      ))
+      ->fields(array(
+        'status' => 1,
+        'region' => 'content',
+        'pages' => '',
+      ))
+      ->execute();
+    db_merge('block')
+      ->key(array(
+        'theme' => $default_theme,
+        'module' => 'system',
+        'delta' => 'user-menu',
+      ))
+      ->fields(array(
+        'status' => 1,
+        'region' => 'sidebar_first',
+        'pages' => '',
+      ))
+      ->execute();
+
+    // Enable Garland.
+    theme_enable(array('garland'));
+  }
+
+  /**
+   * Asserts that a class is set for the given element id.
+   *
+   * @param $id
+   *   Id of the HTML element to check.
+   * @param $class
+   *   The class name to check for.
+   * @param $message
+   *   Message to display.
+   * @return
+   *   TRUE on pass, FALSE on fail.
+   */
+  function assertSkinrClass($id, $class, $message = '') {
+    $elements = $this->xpath('//div[@id=:id]', array(':id' => $id));
+    $class_attr = (string) $elements[0]['class'];
+    $this->assertTrue(strpos($class_attr, ' ' . $class . ' '), $message);
+  }
+
+  /**
+   * Asserts that a class is not set for the given element id.
+   *
+   * @param $id
+   *   Id of the HTML element to check.
+   * @param $class
+   *   The class name to check for.
+   * @param $message
+   *   Message to display.
+   * @return
+   *   TRUE on pass, FALSE on fail.
+   */
+  function assertNoSkinrClass($id, $class, $message = '') {
+    $elements = $this->xpath('//div[@id=:id]', array(':id' => $id));
+    $class_attr = (string) $elements[0]['class'];
+    $this->assertFalse(strpos($class_attr, ' ' . $class . ' '), $message);
+  }
+
+  public function testSkinrDisplayed() {
+    // Save a skin configuration object.
+    $skin = (object) array(
+      'theme' => 'bartik',
+      'module' => 'block',
+      'element' => 'system-user-menu',
+      'skin' => 'skinr_test_font',
+      'options' => array('font_1'),
+      'status' => 1,
+    );
+    $this->assertTrue(skinr_skin_save($skin), 'Skin configuration object was saved.');
+    $this->verbose(print_r($skin, TRUE));
+
+    // Go to the front page.
+    $this->drupalGet('');
+    $this->assertSkinrClass('block-system-user-menu', 'font-1', 'CSS class of configured skin option found.');
+
+    $content = $this->drupalGetContent();
+
+    $css = drupal_get_path('module', 'skinr_test') . '/skinr_test.css';
+    $this->assertRaw($css, t('Stylesheet was included on page.'));
+
+    $js = drupal_get_path('module', 'skinr_test') . '/skinr_test.js';
+    $this->assertRaw($js, t('Javascript was included on page.'));
   }
 }

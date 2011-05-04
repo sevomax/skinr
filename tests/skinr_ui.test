@@ -103,7 +103,7 @@ class SkinrUIBasicTestCase extends SkinrUITestCase {
     // available.
     // Verify that we can apply the skinr_test_font skin to the block.
     $edit = array(
-      'skinr_settings[block_group][bartik][widgets][typography][skinr_test_font]' => 'font_1',
+      'skinr_settings[block_group][bartik][typography][skinr_test_font]' => 'font_1',
     );
     // NULL means that we want to post to the page that is still contained in
     // SimpleTest's internal browser; i.e., the page of the path above. Instead
@@ -188,5 +188,26 @@ class SkinrUIAdminTestCase extends SkinrUITestCase {
     // Verify that the 'Typography' group appears, since skinr_test module
     // registers a skin in that group.
     $this->assertText(t('Typography'));
+  }
+
+  /**
+   * Tests skin configuration listing functionality.
+   */
+  function testSkinListing() {
+    $skin = (object) array(
+      'theme' => 'skinr_test_subtheme',
+      'module' => 'block',
+      'element' => 'system-user-menu',
+      'skin' => 'skinr_test_subtheme',
+      'options' => array('option1', 'option2'),
+      'status' => 1,
+    );
+    skinr_skin_save($skin);
+
+    // Verify that the skin configuration appears on the skin configurations overview page.
+    $this->drupalGet('admin/appearance/skinr');
+    $this->assertLinkByHref('admin/appearance/skinr/delete/' . $skin->sid . '?destination=admin/appearance/skinr', 0, 'Skin configuration was found on overview page.');
+
+    // @todo Should we check the filtering and update options functionality?
   }
 }
