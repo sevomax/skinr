@@ -56,6 +56,42 @@ class SkinrUITestCase extends DrupalWebTestCase {
     // order to test subtheme inheritance functionality.
     theme_enable(array('garland', 'skinr_test_subtheme'));
   }
+
+  /**
+   * Asserts that a class is set for the given element id.
+   *
+   * @param $id
+   *   Id of the HTML element to check.
+   * @param $class
+   *   The class name to check for.
+   * @param $message
+   *   Message to display.
+   * @return
+   *   TRUE on pass, FALSE on fail.
+   */
+  function assertSkinrClass($id, $class, $message = '') {
+    $elements = $this->xpath('//div[@id=:id]', array(':id' => $id));
+    $class_attr = (string) $elements[0]['class'];
+    $this->assertTrue(strpos($class_attr, ' ' . $class . ' '), $message);
+  }
+
+  /**
+   * Asserts that a class is not set for the given element id.
+   *
+   * @param $id
+   *   Id of the HTML element to check.
+   * @param $class
+   *   The class name to check for.
+   * @param $message
+   *   Message to display.
+   * @return
+   *   TRUE on pass, FALSE on fail.
+   */
+  function assertNoSkinrClass($id, $class, $message = '') {
+    $elements = $this->xpath('//div[@id=:id]', array(':id' => $id));
+    $class_attr = (string) $elements[0]['class'];
+    $this->assertFalse(strpos($class_attr, ' ' . $class . ' '), $message);
+  }
 }
 
 /**
@@ -119,11 +155,38 @@ class SkinrUIBasicTestCase extends SkinrUITestCase {
     $this->assertUrl($front);
 
     // Verify that the skin has been applied.
-    // @todo We are going to need this kind of assertion all over again;
-    //   abstract it into a assertSkinrClass() helper method.
-    $elements = $this->xpath('//div[@id=:id]', array(':id' => 'block-system-user-menu'));
-    $class = (string) $elements[0]['class'];
-    $this->assertTrue(strpos($class, ' font-1 '), 'CSS class of configured skin option found.');
+    $this->assertSkinrClass('block-system-user-menu', 'font-1', 'CSS class of configured skin option found.');
+  }
+
+  /**
+   * Tests access control for editing additional CSS classes.
+   */
+  function testSkinAdditionalEdit() {
+    // Verify that we can apply additional CSS classes.
+    $edit = array(
+      'skinr_settings[block_group][bartik][_additional]' => 'additional',
+    );
+    $this->drupalPost('admin/appearance/skinr/edit/nojs/block/system-user-menu/configure', $edit, t('Save'));
+
+    // Verify that the skin has been applied.
+    $this->drupalGet('');
+    $this->assertSkinrClass('block-system-user-menu', 'additional', 'Additional CSS class <em>additional</em> of configured skin option found.');
+
+    // Now let's check the same for a user that has no access to alter this.
+    $user = $this->drupalCreateUser(array('edit skin settings'));
+    $this->drupalLogin($user);
+
+    // Verify that the additional CSS classes field is not enabled.
+    $this->drupalGet('admin/appearance/skinr/edit/nojs/block/system-user-menu/configure');
+    $this->assertNoFieldByName('skinr_settings[block_group][bartik][_additional]', NULL, 'Additional CSS classes field is not enabled for this user.');
+
+    // Save form when additional CSS classes is not set.
+    $edit = array();
+    $this->drupalPost(NULL, $edit, t('Save'));
+
+    // Verify that the old class is still applied.
+    $this->drupalGet('');
+    $this->assertSkinrClass('block-system-user-menu', 'additional', 'Additional CSS class <em>additional</em> of configured skin option found.');
   }
 }
 

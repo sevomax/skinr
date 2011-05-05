@@ -123,11 +123,16 @@ function skinr_submit_handler(&$form, $form_state, $module, $form_settings) {
       // Process widgets.
       if (!empty($theme) && is_array($theme)) {
         foreach ($theme as $skin_name => $options) {
+          if ($skin_name == '_additional' && !user_access('edit advanced skin settings')) {
+            // This user doesn't have access to alter these options.
+            continue;
+          }
+
           // Ensure options is an array.
           if (!is_array($options)) {
             $options = $skin_name == '_additional' ? explode(' ', $options) : array($options);
           }
-          // Sanitzie options.
+          // Sanitize options.
           $options = _skinr_array_strip_empty($options);
 
           // Find existing skin.
