@@ -1,8 +1,12 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
-#891942 by Vraja, moonray: Tests for class lost when editing block and user doesn't have "access skinr classes" permission. Bug already fixed by previous patch.
-#1082842 by moonray: Update storage of skin configurations to give more granular control.
+#1148092 by moonray: Fixed PDOException on Skinr installation when using UTF8
+  character set in DB.
+#891942 by Vraja, moonray: Tests for class lost when editing block and user doesn't
+  have "access skinr classes" permission. Bug already fixed by previous patch.
+#1082842 by moonray: Update storage of skin configurations to give more
+  granular control.
 #1050064 by moonray | Hari: Fixed Skinr failing to load CSS files when added at
   the option level of a Skin.
 #1053738 by moonray: Fixed Simpletest for Skinr UI fails.
