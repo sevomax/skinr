@@ -180,14 +180,14 @@ function rules_skinr_contextual_links(&$variables) {
   else {
     $rule_type = 'page';
   }
-  $rules = skinr_rule_load_multiple(array(), array('rule_type' => 'page'));
+  $rules = skinr_rule_load_multiple(array(), array('rule_type' => $rule_type));
   $links = array();
   $counter = 1;
 
   foreach ($rules as $rule) {
     if (skinr_rule_visible($rule->rid)) {
       $links['skinr-rule-' . $counter++] = array(
-        'admin/config/skinr/edit/nojs', array('page', $rule->rid),
+        'admin/config/skinr/edit/nojs', array('rule', $rule->rid),
       );
     }
   }

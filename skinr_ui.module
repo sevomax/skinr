@@ -644,13 +644,10 @@ function skinr_ui_preprocess(&$variables, $hook) {
   }
 
   foreach ($config as $module => $module_settings) {
-    if (!empty($module_settings['preprocess'][$original_hook])) {
-
+    if (!empty($module_settings['contextual_links'][$original_hook])) {
       // Set contextual links.
-      if (!empty($module_settings['contextual_links'][$original_hook])) {
-        if ($contextual_links = skinr_handler('contextual_links', '', $module_settings['contextual_links'][$original_hook]['contextual_links_handler'], $variables)) {
-          skinr_ui_contextual_links($variables, $original_hook, $contextual_links);
-        }
+      if ($contextual_links = skinr_handler('contextual_links', '', $module_settings['contextual_links'][$original_hook]['contextual_links_handler'], $variables)) {
+        skinr_ui_contextual_links($variables, $original_hook, $contextual_links);
       }
     }
   }

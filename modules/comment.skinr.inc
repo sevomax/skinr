@@ -14,12 +14,6 @@
  * Implements hook_skinr_config_info().
  */
 function comment_skinr_config_info() {
-  $data['comment']['form']['node_type_form'] = array(
-    'index_handler' => 'comment_skinr_form_index_handler',
-    'preprocess_hook_callback' => 'comment_skinr_preprocess_hook_callback',
-    'title' => t('comment settings'),
-    'weight' => 1,
-  );
   $data['comment']['form']['skinr_ui_form'] = array(
     'preprocess_hook_callback' => 'comment_skinr_preprocess_hook_callback',
     'title' => t('comment settings'),

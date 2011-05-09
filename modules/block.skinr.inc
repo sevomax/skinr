@@ -14,20 +14,6 @@
  * Implements hook_skinr_config_info().
  */
 function block_skinr_config_info() {
-  $data['block']['form']['block_admin_configure'] = array(
-    'index_handler' => 'block_skinr_form_index_handler',
-    'preprocess_hook_callback' => 'block_skinr_preprocess_hook_callback',
-    'title' => t('block settings'),
-    'skinr_weight' => 0,
-    'collapsed' => FALSE,
-  );
-  $data['block']['form']['block_add_block_form'] = array(
-    'index_handler' => 'block_skinr_form_index_handler',
-    'preprocess_hook_callback' => 'block_skinr_preprocess_hook_callback',
-    'title' => t('block settings'),
-    'skinr_weight' => 0,
-    'collapsed' => FALSE,
-  );
   $data['block']['form']['skinr_ui_form'] = array(
     'preprocess_hook_callback' => 'block_skinr_preprocess_hook_callback',
     'title' => t('block settings'),
@@ -63,10 +49,10 @@ function block_skinr_config_info() {
 function block_skinr_form_index_handler($op, &$form, $form_state) {
   switch ($op) {
     case 'form':
-      return $form['module']['#value'] . '-' . $form['delta']['#value'];
+      return $form['module']['#value'] . '__' . $form['delta']['#value'];
 
     case 'submit':
-      return $form_state['values']['module'] . '-' . $form_state['values']['delta'];
+      return $form_state['values']['module'] . '__' . $form_state['values']['delta'];
   }
 }
 
@@ -85,10 +71,13 @@ function block_skinr_preprocess_hook_callback(&$form, $form_state) {
   $preprocess_hooks = array();
 
   if (empty($form['module']['#value']) && !empty($form['skinr']['element']['#value'])) {
+    list($module, $delta) = explode('__', $form['skinr']['element']['#value'], 2);
+
     $result = db_select('block', 'b')
       ->fields('b')
       ->distinct()
-      ->where('CONCAT(b.module, \'-\', b.delta) = :identifier', array(':identifier' => $form['skinr']['element']['#value']))
+      ->condition('b.module', $module)
+      ->condition('b.delta', $delta)
       ->range(0, 1)
       ->execute();
     foreach ($result as $block) {
@@ -115,7 +104,7 @@ function block_skinr_preprocess_hook_callback(&$form, $form_state) {
  *   structure and merge the returned classes.
  */
 function block_skinr_preprocess_index_handler(&$variables) {
-  return array($variables['block']->module . '-' . $variables['block']->delta);
+  return array($variables['block']->module . '__' . $variables['block']->delta);
 }
 
 /**
@@ -136,7 +125,7 @@ function block_skinr_preprocess_index_handler(&$variables) {
 function block_skinr_contextual_links(&$variables) {
   $links = array();
   $links['skinr-block'] = array(
-    'admin/appearance/skinr/edit/nojs', array('block', $variables['block']->module . '-' . $variables['block']->delta),
+    'admin/appearance/skinr/edit/nojs', array('block', $variables['block']->module . '__' . $variables['block']->delta),
   );
   return $links;
 }

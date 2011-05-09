@@ -2,11 +2,11 @@
 
 /**
  * @file
- * Provide skinr handling for node.module
+ * Provide skinr handling for views.module
  */
 
 /**
- * @defgroup skinr_node_module node.module handlers
+ * @defgroup skinr_views_module views.module handlers
  *
  * @{
  */
@@ -15,21 +15,6 @@
  * Implements hook_skinr_config_info().
  */
 function views_skinr_config_info() {
-  $data['views']['form']['views_ui_edit_display_form'] = array(
-    'index_handler' => 'views_skinr_form_index_handler',
-    'access_handler' => 'views_skinr_access_handler_display',
-    'data_handler' => 'views_skinr_data_handler',
-    'submit_handler' => 'views_skinr_submit_handler_display',
-    'submit_handler_attach_to' => array('buttons', 'submit', '#submit'),
-    'preprocess_hook_callback' => 'views_skinr_preprocess_hook_callback',
-    'title' => t('views style settings'),
-    'skinr_weight' => 0,
-    'collapsed' => FALSE,
-  );
-  $data['views']['form']['views_ui_edit_view_form'] = array(
-    'access_handler' => 'views_skinr_access_handler_view',
-    'submit_handler' => 'views_skinr_submit_handler_view',
-  );
   $data['views']['form']['skinr_ui_form'] = array(
     'preprocess_hook_callback' => 'views_skinr_preprocess_hook_callback',
     'title' => t('views style settings'),
@@ -38,234 +23,11 @@ function views_skinr_config_info() {
   $data['views']['preprocess']['views_view'] = array(
     'index_handler' => 'views_skinr_preprocess_index_handler',
   );
+  $data['views']['contextual_links']['page'] = array(
+    'contextual_links_handler' => 'views_skinr_contextual_links',
+  );
 
   return $data;
-}
-
-/**
- * Skinr form index handler.
- *
- * @param $op
- *   What kind of action is being performed. Possible values:
- *   - 'form': the form elements for Skinr are being inserted in a form.
- *   - 'submit': the form has been submitted.
- * @param &$form
- *   - For 'form', passes in the $form parameter from hook_form_alter().
- *   - For 'submit', passes in the $form parameter from hook_form_submit().
- * @param $form_state
- *   - For 'form', passes in the $form_state parameter from hook_form_alter().
- *   - For 'submit', passes in the $form_state parameter from hook_form_submit().
- *
- * @return
- *   The index where we can find our values in Skinr's data structure.
- */
-function views_skinr_form_index_handler($op, &$form, $form_state) {
-  switch ($op) {
-    case 'form':
-      $default = $form_state['view']->display_handler->is_defaulted('style_options');
-      if ($default) {
-        return 'view-'. $form_state['view']->name .'-display-default';
-      }
-      else {
-        return 'view-'. $form_state['view']->name .'-display-'. $form_state['view']->current_display;
-      }
-
-    case 'submit':
-      // Can't use display_handler->is_defaulted('style_options') on submit
-      $default = ($form_state['#section'] == 'default-style_options');
-      if ($default) {
-        return 'view-'. $form_state['view']->name .'-display-default';
-      }
-      else {
-        return 'view-'. $form_state['view']->name .'-display-'. $form_state['display_id'];
-      }
-  }
-}
-
-/**
- * Skinr access handler.
- *
- * @param $op
- *   What kind of action is being performed. Possible values:
- *   - edit skin settings
- *   - edit advanced skin settings
- * @param &$form
- *   Passes in the $form parameter from hook_form_alter().
- * @param $form_state
- *   Passes in the $form_state parameter from hook_form_alter().
- *
- * @return
- *   TRUE if we get access, FALSE otherwise.
- */
-function views_skinr_access_handler_display($op, &$form, $form_state) {
-  if ($access = skinr_access_handler($op, $form, $form_state)) {
-    // Views uses the same form_id for all forms, but it sets a $section
-    // variable to distinguish between them. So only show the skinr settings
-    // form on the style options form.
-    if ($form_state['section'] != 'style_options') {
-      $access = FALSE;
-    }
-  }
-
-  return $access;
-}
-
-function views_skinr_access_handler_view($op, &$form, $form_state) {
-  // We don't want the skinr settings form to appear on this form. We only want
-  // to intercept it so we can save our cached data.
-
-  // Since we're not using the form, we won't get our form submitter, so let's
-  // add it manually.
-
-  // Only add submit handler once
-  if (!in_array('skinr_ui_form_submit', $form['#submit'])) {
-    $form['#submit'][] = 'skinr_ui_form_submit';
-  }
-  // Special for views
-  if (isset($form['buttons']['save']['#submit']) && !in_array('skinr_ui_form_submit', $form['buttons']['save']['#submit'])) {
-    $form['buttons']['save']['#submit'][] = 'skinr_ui_form_submit';
-  }
-  if (isset($form['buttons']['cancel']['#submit']) && !in_array('skinr_ui_form_submit', $form['buttons']['cancel']['#submit'])) {
-    // Need to make this happen before views' submit handler because it hijacks
-    // things and does a drupal_goto(). That effectively prevents any other
-    // submit handlers from being processed.
-    array_unshift($form['buttons']['cancel']['#submit'], 'skinr_ui_form_submit');
-  }
-
-  return FALSE;
-}
-
-/**
- * Skinr data handler.
- * This is the data that populates the skinr form.
- *
- * @param &$form
- *   Passes in the $form parameter from hook_form_submit().
- * @param $form_state
- *   Passes in the $form_state parameter from hook_form_submit().
- * @param $module
- *   The module that is currently being processed.
- * @param $form_settings
- *   The settings from hook_skinr_config() for the form that's currently being
- *   processed.
- *
- * @return
- *   A skinr settings object.
- */
-function views_skinr_data_handler(&$form, $form_state, $theme, $module, $form_settings) {
-  // Ensure we have the required index_handler
-  if (empty($form_settings['index_handler'])) {
-    trigger_error(sprintf("No index_handler was found for form_id '%s' in module '%s'.", $form_id, $module), E_USER_ERROR);
-  }
-  $index = skinr_handler('form_index_handler', 'form', $form_settings['index_handler'], $form, $form_state);
-
-  // Fetch skinr data for this view from cache
-  views_include('cache');
-
-  if ($skinrs = ctools_object_cache_get('skinr', $form_state['view']->name)) {
-    if (isset($skinrs[$theme][$index])) {
-      $skinr = new stdClass();
-      $skinr->theme = $theme;
-      $skinr->module = $module;
-      $skinr->element = $index;
-      $skinr->skins = $skinrs[$theme][$index];
-
-      return $skinr;
-    }
-    else {
-      return array();
-    }
-  }
-
-  // No data exists in cache, so let's grab it from the regular source
-  return skinr_skin_load($theme, $module, $index);
-}
-
-/**
- * Skinr submit handler.
- *
- * @param &$form
- *   Passes in the $form parameter from hook_form_submit().
- * @param $form_state
- *   Passes in the $form_state parameter from hook_form_submit().
- * @param $module
- *   The module that is currently being processed.
- * @param $form_settings
- *   The settings from hook_skinr_config() for the form that's currently being
- *   processed.
- */
-function views_skinr_submit_handler_display(&$form, $form_state, $module, $form_settings) {
-  foreach ($form_state['values']['skinr_settings'][$module .'_group'] as $theme_name => $theme) {
-    if ((!empty($theme['widgets']) && is_array($theme['widgets'])) || isset($theme['_additional'])) {
-      $element = skinr_handler('form_index_handler', 'submit', $form_settings['index_handler'], $form, $form_state);
-      $value = array();
-
-      if (!empty($theme['widgets']) && is_array($theme['widgets'])) {
-        foreach ($theme['widgets'] as $skin_name => $skin_value) {
-          $value['_options'][$skin_name] = $skin_value;
-        }
-      }
-
-      if (isset($theme['_additional'])) {
-        $theme['_additional'] = trim($theme['_additional']);
-        if (!empty($theme['_additional'])) {
-          $value['_additional'] = $theme['_additional'];
-        }
-      }
-
-      if (empty($element)) {
-        // We didn't receive a valid element, so raise an error
-        drupal_set_message(t("Skinr settings weren't saved due to an error."), 'error');
-      }
-
-      // Save skinr_settings for this view in cache
-      ctools_include('object-cache');
-      if (!$skinrs = ctools_object_cache_get('skinr', $form_state['view']->name, TRUE)) {
-        $skinrs = array();
-        // Fetch skinr data
-        $skinr = skinr_skin_load($theme_name);
-        if (isset($skinr[$module])) {
-          foreach ($skinr[$module] as $skinr_key => $skinr_value) {
-            if (drupal_substr($skinr_key, 0, drupal_strlen('view-'. $form_state['view']->name)) == 'view-'. $form_state['view']->name) {
-              $skinrs[$theme_name][$skinr_key] = $skinr_value;
-            }
-          }
-        }
-      }
-      $skinrs[$theme_name][$element] = $value;
-      ctools_object_cache_set('skinr', $form_state['view']->name, $skinrs);
-    }
-  }
-}
-
-function views_skinr_submit_handler_view(&$form, $form_state, $module, $form_settings) {
-  switch ($form_state['values']['op']) {
-    case t('Save'):
-      // Fetch skinr data for this view from cache
-      ctools_include('object-cache');
-
-      if ($skinrs = ctools_object_cache_get('skinr', $form_state['view']->name, TRUE)) {
-        foreach ($skinrs as $theme_name => $theme) {
-          foreach ($theme as $element => $skins) {
-            $skinr = new stdClass();
-            $skinr->theme = $theme_name;
-            $skinr->module = $module;
-            $skinr->element = $element;
-            $skinr->skins = $skins;
-
-            skinr_skin_save($skinr);
-          }
-        }
-        ctools_object_cache_clear('skinr', $form_state['view']->name);
-      }
-      break;
-    case t('Cancel'):
-      // Remove our data from views cache
-      ctools_include('object-cache');
-
-      ctools_object_cache_clear('skinr', $form_state['view']->name);
-      break;
-  }
 }
 
 /**
@@ -286,7 +48,7 @@ function views_skinr_preprocess_hook_callback(&$form, $form_state) {
     $view = $form_state['view'];
   }
   elseif(isset($form['skinr']['element']['#value'])) {
-    $element_info = _views_skinr_element_info($form['skinr']['element']['#value']);
+    list($element_info['view'], $element_info['display']) = explode('__', $form['skinr']['element']['#value'], 2);
     if ($view = views_get_view($element_info['view'])) {
       $view->execute_display($element_info['display']);
     }
@@ -306,58 +68,24 @@ function views_skinr_preprocess_hook_callback(&$form, $form_state) {
   return $preprocess_hooks;
 }
 
-function _views_skinr_element_info($element) {
-  // view-[view_name]-display-[display_name]
-  $pos = strpos($element, '-display-');
-  if ($pos !== FALSE) {
-    $element_info = array();
-    $element_info['view'] = substr($element, strlen('view-'), $pos - strlen('view-'));
-    $element_info['display'] = substr($element, $pos + strlen('-display-'));
-
-    return $element_info;
-  }
-
-  return FALSE;
-}
-
 /**
  * Skinr preprocess index handler.
- *
- * @param &$variables
- *   Passes in the $variables parameter from module_preprocess().
- *
- * @return
- *   The index where we can find our values in Skinr's data structure. If an
- *   array is returned, it will loop through each index in Skinr's data
- *   structure and merge the returned classes.
  */
 function views_skinr_preprocess_index_handler(&$variables) {
-  $default = $variables['view']->display_handler->is_defaulted('style_options');
-  if ($default) {
-    return array('view-'. $variables['view']->name .'-display-default');
-  }
-  else {
-    return array('view-'. $variables['view']->name .'-display-'. $variables['view']->current_display);
-  }
+  return array($variables['view']->name .'__'. $variables['view']->current_display);
 }
 
 /**
- * Implements hook_views_admin_links_alter().
+ * Skinr contextual links handler.
  */
-function views_views_admin_links_alter(&$links, &$view) {
-  $default = $view->display_handler->is_defaulted('style_options');
-  if ($default) {
-    $element = 'view-'. $view->name .'-display-default';
+function views_skinr_contextual_links(&$variables) {
+  $links = array();
+  if (!empty($variables['page']['#views_contextual_links_info'])) {
+    $links['skinr-views'] = array(
+      'admin/appearance/skinr/edit/nojs', array('views', $variables['page']['#views_contextual_links_info']['views_ui']['view_name'] . '__' . $variables['page']['#views_contextual_links_info']['views_ui']['view_display_id']),
+    );
   }
-  else {
-    $element = 'view-'. $view->name .'-display-'. $view->current_display;
-  }
-
-  $links[] = array(
-    'title' => skinr_ui_edit_contextual_title('views', $element),
-    'href' => 'admin/appearance/skinr/edit/nojs/views/' . $element,
-    'query' => drupal_get_destination(),
-  );
+  return $links;
 }
 
 /**

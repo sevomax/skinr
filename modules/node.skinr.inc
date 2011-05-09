@@ -14,11 +14,6 @@
  * Implements hook_skinr_config_info().
  */
 function node_skinr_config_info() {
-  $data['node']['form']['node_type_form'] = array(
-    'index_handler' => 'node_skinr_form_index_handler',
-    'preprocess_hook_callback' => 'node_skinr_preprocess_hook_callback',
-    'title' => t('node settings'),
-  );
   $data['node']['form']['skinr_ui_form'] = array(
     'preprocess_hook_callback' => 'node_skinr_preprocess_hook_callback',
     'title' => t('node settings'),
