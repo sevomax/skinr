@@ -1,6 +1,8 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+by moonray: Fixed typo in skinr_get_config_info() that prevented skipping
+  re-loading of cached data.
 #1148092 by moonray: Fixed PDOException on Skinr installation when using UTF8
   character set in DB.
 #891942 by Vraja, moonray: Tests for class lost when editing block and user doesn't
