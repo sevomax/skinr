@@ -1070,7 +1070,7 @@ function skinr_get_group_info() {
 function skinr_get_config_info() {
   $config_info = &drupal_static(__FUNCTION__);
 
-  if (!isset($config)) {
+  if (!isset($config_info)) {
     if ($cached = cache_get('skinr_config_info')) {
       $config_info = $cached->data;
       return $config_info;
