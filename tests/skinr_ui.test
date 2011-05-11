@@ -131,7 +131,7 @@ class SkinrUIBasicTestCase extends SkinrUITestCase {
     // Verify that we end up on the expected URL to configure skins for the
     // user menu block.
     $front = variable_get('site_frontpage', 'node');
-    $this->assertUrl('admin/appearance/skinr/edit/nojs/block/system-user-menu/configure', array(
+    $this->assertUrl('admin/appearance/skinr/edit/nojs/block/system__user-menu/configure', array(
       'query' => array('destination' => $front),
     ));
 
@@ -166,7 +166,7 @@ class SkinrUIBasicTestCase extends SkinrUITestCase {
     $edit = array(
       'skinr_settings[block_group][bartik][_additional]' => 'additional',
     );
-    $this->drupalPost('admin/appearance/skinr/edit/nojs/block/system-user-menu/configure', $edit, t('Save'));
+    $this->drupalPost('admin/appearance/skinr/edit/nojs/block/system__user-menu/configure', $edit, t('Save'));
 
     // Verify that the skin has been applied.
     $this->drupalGet('');
@@ -177,7 +177,7 @@ class SkinrUIBasicTestCase extends SkinrUITestCase {
     $this->drupalLogin($user);
 
     // Verify that the additional CSS classes field is not enabled.
-    $this->drupalGet('admin/appearance/skinr/edit/nojs/block/system-user-menu/configure');
+    $this->drupalGet('admin/appearance/skinr/edit/nojs/block/system__user-menu/configure');
     $this->assertNoFieldByName('skinr_settings[block_group][bartik][_additional]', NULL, 'Additional CSS classes field is not enabled for this user.');
 
     // Save form when additional CSS classes is not set.
@@ -260,7 +260,7 @@ class SkinrUIAdminTestCase extends SkinrUITestCase {
     $skin = (object) array(
       'theme' => 'skinr_test_subtheme',
       'module' => 'block',
-      'element' => 'system-user-menu',
+      'element' => 'system__user-menu',
       'skin' => 'skinr_test_subtheme',
       'options' => array('option1', 'option2'),
       'status' => 1,
