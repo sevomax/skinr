@@ -30,33 +30,6 @@ function block_skinr_config_info() {
 }
 
 /**
- * Skinr form index handler.
- *
- * @param $op
- *   What kind of action is being performed. Possible values:
- *   - 'form': the form elements for Skinr are being inserted in a form.
- *   - 'submit': the form has been submitted.
- * @param &$form
- *   - For 'form', passes in the $form parameter from hook_form_alter().
- *   - For 'submit', passes in the $form parameter from hook_form_submit().
- * @param $form_state
- *   - For 'form', passes in the $form_state parameter from hook_form_alter().
- *   - For 'submit', passes in the $form_state parameter from hook_form_submit().
- *
- * @return
- *   The index where we can find our values in Skinr's data structure.
- */
-function block_skinr_form_index_handler($op, &$form, $form_state) {
-  switch ($op) {
-    case 'form':
-      return $form['module']['#value'] . '__' . $form['delta']['#value'];
-
-    case 'submit':
-      return $form_state['values']['module'] . '__' . $form_state['values']['delta'];
-  }
-}
-
-/**
  * Skinr preprocess hook callback.
  *
  * @param &$form

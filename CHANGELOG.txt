@@ -1,6 +1,7 @@
 
 Skinr 7.x-2.x, xxxx-xx-xx
 -------------------------
+Issue #1044222 by sun, moonray: Removed left-over junk code.
 Issue #1044222 by sun, moonray: Fixed tests.
 Issue #1044222 by sun, moonray: Removed skin configuration functionality from
   third-party forms.
