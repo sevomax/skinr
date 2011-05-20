@@ -104,8 +104,9 @@ function skinr_rule_add($form, &$form_state) {
 function skinr_rule_add_submit($form, &$form_state) {
   $rule = new stdClass();
   $rule->rid = NULL;
-  $rule->rule_type = $form_state['values']['rule']['rule_type'];
   $rule->title = $form_state['values']['rule']['title'];
+  $rule->rule_type = $form_state['values']['rule']['rule_type'];
+  $rule->node_types = array();
   $rule->roles = array();
   $rule->visibility = 0;
   $rule->pages = '';
@@ -118,18 +119,16 @@ function skinr_rule_add_submit($form, &$form_state) {
 }
 
 /**
- * Menu callback; displays the edit form for a skinr rule.
+ * Form builder for the rule configuration form.
  *
  * @param $rid
  *   The rule ID.
  *
+ * @see skinr_rule_edit_submit()
  * @ingroup forms
  */
 function skinr_rule_edit($form, &$form_state, $rid = NULL) {
   $form['rule'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Skinr rule visibility'),
-    '#collapsible' => TRUE,
     '#weight' => -1,
   );
 
@@ -137,6 +136,7 @@ function skinr_rule_edit($form, &$form_state, $rid = NULL) {
     $rule = array(
       'title' => $form_state['values']['title'],
       'rule_type' => $form_state['values']['rule_type'],
+      'node_types' => $form_state['values']['types'],
       'roles' => $form_state['values']['roles'],
       'visibility' => $form_state['values']['visibility'],
       'pages' => $form_state['values']['pages'],
@@ -153,6 +153,7 @@ function skinr_rule_edit($form, &$form_state, $rid = NULL) {
     $rule = array(
       'title' => '',
       'rule_type' => '',
+      'node_types' => array(),
       'roles' => array(),
       'visibility' => 0,
       'pages' => '',
@@ -161,7 +162,7 @@ function skinr_rule_edit($form, &$form_state, $rid = NULL) {
 
   $form['rule']['title'] = array(
     '#type' => 'textfield',
-    '#title' => t('Title'),
+    '#title' => t('Rule title'),
     '#default_value' => $rule['title'],
     '#description' => t('Descriptive title for this rule; used by administrators.'),
     '#required' => TRUE,
@@ -173,49 +174,115 @@ function skinr_rule_edit($form, &$form_state, $rid = NULL) {
   );
   $form['rule']['rule_type_displayed'] = array(
     '#type' => 'item',
-    '#title' => t('Type'),
+    '#title' => t('Rule type'),
     '#markup' => $rule['rule_type'],
     '#description' => t('Type of element the rule is applied to.'),
   );
 
-  // Inject the rule's form elements here.
-  $form['rule']['roles'] = array(
-    '#type' => 'checkboxes',
-    '#title' => t('Show for specific roles'),
-    '#default_value' => $rule['roles'],
-    '#options' => user_roles(),
-    '#description' => t('Show only for the selected role(s). If you select no roles, it will be visible to all users.'),
+  // Visibility settings.
+  $form['visibility_title'] = array(
+    '#type' => 'item',
+    '#title' => t('Visibility settings'),
+  );
+  $form['visibility'] = array(
+    '#type' => 'vertical_tabs',
+    '#attached' => array(
+      'js' => array(drupal_get_path('module', 'skinr_ui') . '/js/skinr_ui.rules.js'),
+    ),
   );
 
-  // Set up options and description.
-  $options = array(0 => t('Show on every page except the listed pages.'), 1 => t('Show on only the listed pages.'));
-  $description = t("Enter one page per line as Drupal paths. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page.", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>'));
-
-  // Add the PHP specific stuff, if user has access.
-  if (module_exists('php') && user_access('use PHP for visibility')) {
-    $options[2] = t('Show if the following PHP code returns <code>TRUE</code> (PHP-mode, experts only).');
-    $description .= ' '. t('If the PHP-mode is chosen, enter PHP code between %php. Note that executing incorrect PHP-code can break your Drupal site.', array('%php' => '<?php ?>'));
-  }
-  $form['rule']['visibility'] = array(
-    '#type' => 'radios',
-    '#title' => t('Show on specific pages'),
-    '#options' => $options,
-    '#default_value' => $rule['visibility'],
-    '#required' => TRUE,
-  );
-  $form['rule']['pages'] = array(
-    '#type' => 'textarea',
+  // Per-path visibility.
+  $form['visibility']['path'] = array(
+    '#type' => 'fieldset',
     '#title' => t('Pages'),
-    '#default_value' => $rule['pages'],
-    '#description' => $description,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#group' => 'visibility',
+    '#weight' => 0,
   );
 
-  $form['buttons']['save'] = array(
+  $access = user_access('use PHP for settings');
+  if (isset($rule['visibility']) && $rule['visibility'] == SKINR_RULE_VISIBILITY_PHP && !$access) {
+    $form['visibility']['path']['visibility'] = array(
+      '#type' => 'value',
+      '#value' => SKINR_RULE_VISIBILITY_PHP,
+    );
+    $form['visibility']['path']['pages'] = array(
+      '#type' => 'value',
+      '#value' => isset($rule['pages']) ? $rule['pages'] : '',
+    );
+  }
+  else {
+    $options = array(
+      SKINR_RULE_VISIBILITY_NOTLISTED => t('All pages except those listed'),
+      SKINR_RULE_VISIBILITY_LISTED => t('Only the listed pages'),
+    );
+    $description = t("Specify pages by using their paths. Enter one path per line. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page.", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>'));
+
+    if (module_exists('php') && $access) {
+      $options += array(SKINR_RULE_VISIBILITY_PHP => t('Pages on which this PHP code returns <code>TRUE</code> (experts only)'));
+      $title = t('Pages or PHP code');
+      $description .= ' ' . t('If the PHP option is chosen, enter PHP code between %php. Note that executing incorrect PHP code can break your Drupal site.', array('%php' => '<?php ?>'));
+    }
+    else {
+      $title = t('Pages');
+    }
+    $form['visibility']['path']['visibility'] = array(
+      '#type' => 'radios',
+      '#title' => t('Show block on specific pages'),
+      '#options' => $options,
+      '#default_value' => isset($rule['visibility']) ? $rule['visibility'] : SKINR_RULE_VISIBILITY_NOTLISTED,
+    );
+    $form['visibility']['path']['pages'] = array(
+      '#type' => 'textarea',
+      '#title' => '<span class="element-invisible">' . $title . '</span>',
+      '#default_value' => isset($rule['pages']) ? $rule['pages'] : '',
+      '#description' => $description,
+    );
+  }
+
+  // Per-node visbility.
+  $form['visibility']['node_type'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Content types'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#group' => 'visibility',
+    '#weight' => 5,
+  );
+  $form['visibility']['node_type']['types'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Show block for specific content types'),
+    '#default_value' => $rule['node_types'],
+    '#options' => node_type_get_names(),
+    '#description' => t('Show this block only on pages that display content of the given type(s). If you select no types, there will be no type-specific limitation.'),
+  );
+
+  // Per-role visibility.
+  $role_options = array_map('check_plain', user_roles());
+  $form['visibility']['role'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Roles'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#group' => 'visibility',
+    '#weight' => 10,
+  );
+  $form['visibility']['role']['roles'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Show block for specific roles'),
+    '#default_value' => $rule['roles'],
+    '#options' => $role_options,
+    '#description' => t('Show this rule only for the selected role(s). If you select no roles, the rule will be visible to all users.'),
+  );
+
+  $form['actions'] = array('#type' => 'actions');
+  $form['actions']['submit'] = array(
     '#type' => 'submit',
-    '#value' => t('Save'),
+    '#value' => t('Save rule'),
   );
   if (isset($rule['rid'])) {
-    $form['buttons']['delete'] = array(
+    $form['actions']['delete'] = array(
       '#type' => 'submit',
       '#value' => t('Delete'),
       '#submit' => array('skinr_rule_delete_submit'),
@@ -226,16 +293,19 @@ function skinr_rule_edit($form, &$form_state, $rid = NULL) {
 }
 
 /**
- * Process skinr_rule_edit() submissions.
+ * Form submission handler for the rule configuration form.
+ *
+ * @see skinr_rule_edit()
  */
 function skinr_rule_edit_submit($form, &$form_state) {
   $rule = new stdClass();
   $rule->rid = !empty($form_state['values']['rid']) ? $form_state['values']['rid'] : NULL;
   $rule->rule_type = $form_state['values']['rule_type'];
   $rule->title = $form_state['values']['title'];
+  $rule->node_types = array_filter($form_state['values']['types']);
   $rule->roles = $form_state['values']['roles'];
-  $rule->visibility = $form_state['values']['visibility'];
-  $rule->pages = $form_state['values']['pages'];
+  $rule->visibility = (int) $form_state['values']['visibility'];
+  $rule->pages = trim($form_state['values']['pages']);
 
   skinr_rule_save($rule);
   // Set rule id, if we inserted a new rule to allow others to know what rule they're working with.
@@ -250,7 +320,7 @@ function skinr_rule_edit_submit($form, &$form_state) {
  * @ingroup forms
  */
 function skinr_rule_delete_submit($form, &$form_state) {
-  $destination = '';
+  $destination = array();
   if (isset($_REQUEST['destination'])) {
     $destination = drupal_get_destination();
     unset($_REQUEST['destination']);
